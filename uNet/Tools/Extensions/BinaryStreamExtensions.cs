@@ -1,0 +1,37 @@
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using uNet.Structures;
+
+namespace uNet.Tools.Extensions
+{
+    public static class BinaryStreamExtensions
+    {
+        public static void WriteEncodedInteger(this BinaryWriter bw, ulong integer)
+        {
+            do
+            {
+                var part = (byte)(0x7F & integer);
+                part = (integer >> 7 == 0) ? part : (byte)(part | 0x80);
+                bw.Write(part);
+                integer = integer >> 7;
+            } while (integer != 0);
+        }
+
+        public static ulong ReadEncodedInteger(this BinaryReader br)
+        {
+            ulong value = 0;
+            var shift = 0;
+            do
+            {
+                var part = br.ReadByte();
+                value |= (ulong)(0x7F & part) << shift;
+                if ((part & 0x80) == 0) return value;
+                shift += 7;
+            } while (true);
+        }
+    }
+}
