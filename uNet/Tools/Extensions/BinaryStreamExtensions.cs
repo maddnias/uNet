@@ -10,6 +10,7 @@ namespace uNet.Tools.Extensions
 {
     public static class BinaryStreamExtensions
     {
+        //Thanks 0xDEADDEAD
         public static void WriteEncodedInteger(this BinaryWriter bw, ulong integer)
         {
             do
@@ -21,6 +22,7 @@ namespace uNet.Tools.Extensions
             } while (integer != 0);
         }
 
+        //Thanks 0xDEADDEAD
         public static ulong ReadEncodedInteger(this BinaryReader br)
         {
             ulong value = 0;
