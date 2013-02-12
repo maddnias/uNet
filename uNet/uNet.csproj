@@ -43,6 +43,10 @@
     <Compile Include="Server\uNetServer.cs" />
     <Compile Include="Server\Peer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Structures\ICryptoScheme.cs" />
+    <Compile Include="Structures\IAutoSerializePacket.cs" />
+    <Compile Include="Structures\IEncryptedPacket.cs" />
+    <Compile Include="Structures\Schemes\TestScheme.cs" />
     <Compile Include="Tools\Extensions\BinaryStreamExtensions.cs" />
     <Compile Include="Tools\Extensions\PacketExtensions.cs" />
     <Compile Include="uNetEvents.cs" />
@@ -54,6 +58,7 @@
     <Compile Include="Tools\PacketProcessor.cs" />
     <Compile Include="uNetExceptions.cs" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

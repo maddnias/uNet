@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using uNet;
 using uNet.Client;
+using uNet.Structures.Schemes;
 
 namespace tester
 {
@@ -15,7 +16,7 @@ namespace tester
         static void Main(string[] args)
         {
             Thread.Sleep(2000);
-            var cl = new uNetClient("127.0.0.1", 1337);
+            var cl = new uNetClient("127.0.0.1", 1337, new TestScheme());
 
             if (cl.Connect())
                 Console.WriteLine("Connected peer");

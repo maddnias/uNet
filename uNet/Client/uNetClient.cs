@@ -39,6 +39,16 @@ namespace uNet.Client
             Processor = new PacketProcessor();
         }
 
+        public uNetClient(string host, uint port, ICryptoScheme cryptoScheme)
+        {
+            EndPoint = new IPEndPoint(IPAddress.Parse(host), (int)port);
+            _uNetClient = new TcpClient();
+            BufferSize = 1024;
+            Processor = new PacketProcessor();
+
+            Globals.CryptoScheme = cryptoScheme;
+        }
+
         public bool Connect()
         {
              var flag = ConnectAsync().Result;
@@ -86,7 +96,7 @@ namespace uNet.Client
                 {
                     var fBuff = new List<byte>();
                     var tmpBuff = new byte[BufferSize];
-                    int packetSize = -1;
+                    var packetSize = -1;
 
                     try
                     {
@@ -101,7 +111,7 @@ namespace uNet.Client
                         return;
                     do
                     {
-                        int read;
+                        int read = 0;
                         try
                         {
                             read = await _netStream.ReadAsync(tmpBuff, 0, tmpBuff.Length);
@@ -109,7 +119,6 @@ namespace uNet.Client
                         catch (Exception)
                         {
                             Disconnect();
-                            throw;
                         }
 
                         fBuff.AddRange((read >= BufferSize ? tmpBuff : tmpBuff.Slice(0, read)));

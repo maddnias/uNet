@@ -3,7 +3,7 @@
     /// <summary>
     /// Sent whenever there's a error regarding a peer
     /// </summary>
-    public class ErrorPacket : IAutoSerializePacket
+    public class ErrorPacket : IAutoSerializePacket, IEncryptedPacket
     {
         public short ID { get { return 1; } }
         public string ErrorMessage { get; set; }

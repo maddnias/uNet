@@ -50,6 +50,17 @@ namespace uNet.Server
             Globals.Server = this;
         }
 
+        public uNetServer(uint port, ICryptoScheme cryptoScheme, string address = "0.0.0.0", bool debug = false)
+        {
+            _uNetSock = new TcpListener(IPAddress.Parse(address), (int)port);
+            _endPoint = new IPEndPoint(IPAddress.Parse(address), (int)port);
+            _debug = debug;
+            ConnectedPeers = new List<Peer>();
+
+            Globals.CryptoScheme = cryptoScheme;
+            Globals.Server = this;
+        }
+
         public void Initialize()
         {
             _uNetSock.Start(100);
@@ -133,6 +144,11 @@ namespace uNet.Server
                     {
                         SendPacket(new ErrorPacket("Protocol version mismatch"), x => x == e.SourcePeer);
                         e.SourcePeer.Disconnect(string.Format("Protocol version mismatch. (Local:{0}/Remote:{1})", Globals.Version, (e.Packet as HandshakePacket).Version));
+                    }
+                    else if (Globals.CryptoScheme != null && ((HandshakePacket) e.Packet).CryptoSchemeID != Globals.CryptoScheme.SchemeID)
+                    {
+                        SendPacket(new ErrorPacket("CryptoScheme ID version mismatch"), x => x == e.SourcePeer);
+                        e.SourcePeer.Disconnect(string.Format("CryptoScheme ID version mismatch. (Local:{0}/Remote:{1})", Globals.CryptoScheme.SchemeID, (e.Packet as HandshakePacket).CryptoSchemeID));
                     }
                     break;
             }

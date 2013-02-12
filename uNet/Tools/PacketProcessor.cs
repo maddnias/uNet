@@ -3,20 +3,28 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading.Tasks;
 using uNet.Structures;
 using uNet.Structures.Packets;
-using uNet.Tools;
 using uNet.Tools.Extensions;
 
 namespace uNet.Tools
 {
+    // Packet format:
+    ///////////////////////////
+    ///  (int32)PacketSize  ///
+    ///  (byte)Encrypt flag ///
+    ///  (short)Packet ID   ///
+    ///////////////////////////
+    /// (byte[])Packet data ///
+    ///////////////////////////
+
+   
     internal class PacketProcessor
     {
         internal event PacketEventHandler OnPacketSent;
 
-        private List<IPacket> _packetTable = new List<IPacket> 
+        private readonly List<IPacket> _packetTable = new List<IPacket> 
         {
             new HandshakePacket(),
             new ErrorPacket(),
@@ -31,14 +39,14 @@ namespace uNet.Tools
                 (packet as IAutoSerializePacket).AutoSerialize(bw);
             else
             {
-                packet.SerializePacket(bw);
                 bw.Write(packet.ID);
+                packet.SerializePacket(bw);
             }
 
             bw.Flush();
 
             // Copy ms -> redirect writer to new ms -> prepend packet size prefix -> append packet paylod
-            FinalizePacket(ref bw);
+            FinalizePacket(ref bw, (packet is IEncryptedPacket && Globals.CryptoScheme != null));
             ms.Dispose(); // Dispose of expired ms, writer's basestream is created in FinalizePacket
             ms = bw.BaseStream as MemoryStream;
 
@@ -52,14 +60,18 @@ namespace uNet.Tools
 
         }
 
-        private void FinalizePacket(ref BinaryWriter writer)
+        private static void FinalizePacket(ref BinaryWriter writer, bool encrypt)
         {
             var data = (writer.BaseStream as MemoryStream).ToArray();
             var ms = new MemoryStream();
             writer = new BinaryWriter(ms);
 
             // Prepend packet size prefix
-            writer.Write(data.Length);
+
+            data = Globals.CryptoScheme != null && encrypt ? Globals.CryptoScheme.EncryptData(data) : data;
+
+            writer.Write(data.Length+1);
+            writer.Write(encrypt ? (byte)0x1 : (byte)0x0);
             writer.Write(data);
         }
 
@@ -67,9 +79,18 @@ namespace uNet.Tools
         {
             IPacket packet;
 
+            if (Globals.CryptoScheme != null && rawData[0] == 0x1)
+            {
+                // Slice raw data to make sure user can not access header
+                Globals.CryptoScheme.DecryptData(rawData.Slice(1, rawData.Length - 1)).CopyTo(rawData, 1);
+            }
+
             using(var ms = new MemoryStream(rawData))
             using (var br = new BinaryReader(ms))
             {
+                // Remove encrypt flag
+                br.ReadByte();
+
                 var id = br.ReadInt16();
                 // Find and create instance of packet from table depending on ID
                 var packetType = _packetTable.FirstOrDefault(x => x.ID == id).GetType();
