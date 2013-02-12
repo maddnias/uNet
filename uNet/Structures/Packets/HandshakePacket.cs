@@ -22,7 +22,7 @@
         public void DeserializePacket(System.IO.BinaryReader reader)
         {
             Version = reader.ReadString();
-            CryptoSchemeID = reader.ReadInt32() + 55;
+            CryptoSchemeID = reader.ReadInt32();
         }
     }
 }
