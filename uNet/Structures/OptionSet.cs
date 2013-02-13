@@ -10,11 +10,13 @@ namespace uNet.Structures
     {
         public bool VerifyPackets { get; set; }
         public ICryptoScheme CryptoScheme { get; set; }
+        public List<IPacket> PacketTable { get; set; }
 
-        public OptionSet(bool verifyPackets, ICryptoScheme cryptoScheme)
+        public OptionSet(bool verifyPackets, ICryptoScheme cryptoScheme, List<IPacket> packetTable)
         {
             VerifyPackets = verifyPackets;
             CryptoScheme = cryptoScheme;
+            PacketTable = packetTable;
         }
     }
 }

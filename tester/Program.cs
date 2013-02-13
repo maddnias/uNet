@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using uNet;
 using uNet.Client;
 using uNet.Structures;
+using uNet.Structures.Packets;
 using uNet.Structures.Schemes;
 
 namespace tester
@@ -16,11 +17,20 @@ namespace tester
     {
         static void Main(string[] args)
         {
-            Thread.Sleep(2000);
-            var cl = new uNetClient("127.0.0.1", 1337, new OptionSet(true, new TestScheme()));
+            var customPackets = new List<IPacket> 
+            {
+                new ExamplePacket()
+            };
 
-            if (cl.Connect())
-                Console.WriteLine("Connected peer");
+            Thread.Sleep(2000);
+            var cl = new uNetClient("127.0.0.1", 1337, new OptionSet(true, new TestScheme(), customPackets));
+
+            cl.OnPacketSent += (o, e) => Console.WriteLine("Sent {0} bytes...", e.RawPacketSize);
+            cl.OnPacketReceived += (o, e) => Console.WriteLine("Received {0} bytes...", e.RawPacketSize);
+            cl.OnConnected += (o, e) => Console.WriteLine("Successfully connected to host");
+            cl.OnDisconnected += (o, e) => Console.WriteLine("Lost connection");
+
+            cl.Connect();
 
             Console.ReadLine();
         }

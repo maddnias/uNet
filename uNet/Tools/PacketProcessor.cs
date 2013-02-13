@@ -23,12 +23,21 @@ namespace uNet.Tools
     internal class PacketProcessor
     {
         internal event PacketEventHandler OnPacketSent;
+        internal OptionSet Settings { get; private set; }
 
-        private readonly List<IPacket> _packetTable = new List<IPacket> 
+        private readonly List<IPacket> _packetTable;
+
+        public PacketProcessor(OptionSet settings)
         {
-            new HandshakePacket(),
-            new ErrorPacket(),
-        };
+            Settings = settings;
+            _packetTable = new List<IPacket> 
+            {
+                new HandshakePacket(),
+                new ErrorPacket(),
+            };
+
+            _packetTable.AddRange(Settings.PacketTable);
+        }
 
         public async void SendPacket(IPacket packet, NetworkStream netStream)
         {
@@ -46,7 +55,7 @@ namespace uNet.Tools
             bw.Flush();
 
             // Copy ms -> redirect writer to new ms -> prepend packet size prefix -> append packet paylod
-            FinalizePacket(ref bw, (packet is IEncryptedPacket && Globals.Settings.CryptoScheme != null));
+            FinalizePacket(ref bw, (packet is IEncryptedPacket && Settings.CryptoScheme != null));
             ms.Dispose(); // Dispose of expired ms, writer's basestream is created in FinalizePacket
             ms = bw.BaseStream as MemoryStream;
 
@@ -60,21 +69,21 @@ namespace uNet.Tools
 
         }
 
-        private static void FinalizePacket(ref BinaryWriter writer, bool encrypt)
+        private void FinalizePacket(ref BinaryWriter writer, bool encrypt)
         {
-            var data = (writer.BaseStream as MemoryStream).ToArray();
+            var data = ((MemoryStream) writer.BaseStream).ToArray();
             var ms = new MemoryStream();
             writer = new BinaryWriter(ms);
 
             // Prepend packet size prefix
 
             var dataHash = data.GetMd5Hash();
-            data = Globals.Settings.CryptoScheme != null && encrypt ? Globals.Settings.CryptoScheme.EncryptData(data) : data;
+            data = Settings.CryptoScheme != null && encrypt ? Settings.CryptoScheme.EncryptData(data) : data;
 
-            writer.Write(data.Length+1 + (Globals.Settings.VerifyPackets ? 16 : 0));
+            writer.Write(data.Length+1 + (Settings.VerifyPackets ? 16 : 0));
             writer.Write(encrypt ? (byte)0x1 : (byte)0x0);
 
-            if (Globals.Settings.VerifyPackets)
+            if (Settings.VerifyPackets)
                 writer.Write(dataHash);
 
             writer.Write(data);
@@ -85,14 +94,14 @@ namespace uNet.Tools
             IPacket packet;
             verified = true;
 
-            if (Globals.Settings.CryptoScheme != null && rawData[0] == 0x1)
+            if (Settings.CryptoScheme != null && rawData[0] == 0x1)
             {
-                // Slice raw data to make sure user can not access header
-                var idx = Globals.Settings.VerifyPackets ? 17 : 1;
-                Globals.Settings.CryptoScheme.DecryptData(rawData.Slice(idx, rawData.Length - idx)).CopyTo(rawData, 17);
+                // Decrypt packet content (skipping header)
+                var idx = Settings.VerifyPackets ? 17 : 1;
+                Settings.CryptoScheme.DecryptData(rawData.Slice(idx, rawData.Length - idx)).CopyTo(rawData, 17);
             }
 
-            if (Globals.Settings.VerifyPackets)
+            if (Settings.VerifyPackets)
             {
                 var remoteHash = rawData.Slice(1, 16);
                 var localHash = rawData.Slice(17, rawData.Length - 17).GetMd5Hash();
@@ -124,6 +133,7 @@ namespace uNet.Tools
             return packet;
         }
 
+        [Obsolete]
         public async Task<int> CalculatePrefix(NetworkStream netStream)
         {
             var packetSize = new List<byte>(sizeof(int));

@@ -32,6 +32,7 @@ namespace uNet.Server
 
         #region Public fields
         public List<Peer> ConnectedPeers { get; set; }
+        public static OptionSet Settings { get; private set; }
         #endregion
 
         #region Private fields
@@ -47,8 +48,7 @@ namespace uNet.Server
             _debug = debug;
             ConnectedPeers = new List<Peer>();
 
-            Globals.Settings = new OptionSet(false, null);
-            Globals.Server = this;
+            Settings = new OptionSet(false, null, new List<IPacket>());
         }
 
         public uNetServer(uint port, OptionSet settings, string address = "0.0.0.0", bool debug = false)
@@ -58,17 +58,15 @@ namespace uNet.Server
             _debug = debug;
             ConnectedPeers = new List<Peer>();
 
-            Globals.Settings = settings;
-            Globals.Server = this;
+            Settings = settings;
         }
 
+        /// <summary>
+        /// Initialize the server and start listening
+        /// </summary>
         public void Initialize()
         {
             _uNetSock.Start(100);
-
-            if (_debug)
-                Debug.Print("Listening on endpoint {0}:{1}", _endPoint.Address, _endPoint.Port);
-
             AcceptAsync();
         }
 
@@ -114,7 +112,7 @@ namespace uNet.Server
             while (true)
             {
                 var client = await _uNetSock.AcceptTcpClientAsync();
-                var peer = new Peer(client);
+                var peer = new Peer(client, this);
 
                 //Subscribe to peer events
                 peer.OnPeerDisconnected += PeerDisconnect;
@@ -146,16 +144,27 @@ namespace uNet.Server
                         SendPacket(new ErrorPacket("Protocol version mismatch"), x => x == e.SourcePeer);
                         e.SourcePeer.Disconnect(string.Format("Protocol version mismatch. (Local:{0}/Remote:{1})", Globals.Version, (e.Packet as HandshakePacket).Version));
                     }
-                    else if (Globals.Settings.CryptoScheme != null && ((HandshakePacket) e.Packet).CryptoSchemeID != Globals.Settings.CryptoScheme.SchemeID)
+                    else if (Settings.CryptoScheme != null && ((HandshakePacket) e.Packet).CryptoSchemeID != Settings.CryptoScheme.SchemeID)
                     {
                         SendPacket(new ErrorPacket("CryptoScheme ID version mismatch"), x => x == e.SourcePeer);
-                        e.SourcePeer.Disconnect(string.Format("CryptoScheme ID version mismatch. (Local:{0}/Remote:{1})", Globals.Settings.CryptoScheme.SchemeID, (e.Packet as HandshakePacket).CryptoSchemeID));
+                        e.SourcePeer.Disconnect(string.Format("CryptoScheme ID version mismatch. (Local:{0}/Remote:{1})", Settings.CryptoScheme.SchemeID, (e.Packet as HandshakePacket).CryptoSchemeID));
                     }
-                    else if (Globals.Settings.VerifyPackets != ((HandshakePacket) e.Packet).VerifyPackets)
+                    else if (Settings.VerifyPackets != ((HandshakePacket) e.Packet).VerifyPackets)
                     {
                         SendPacket(new ErrorPacket("Verify packets option mismatch"), x => x == e.SourcePeer);
-                        e.SourcePeer.Disconnect(string.Format("Verify packets option mismatch. (Local:{0}/Remote:{1})", Globals.Settings.VerifyPackets, (e.Packet as HandshakePacket).VerifyPackets));
+                        e.SourcePeer.Disconnect(string.Format("Verify packets option mismatch. (Local:{0}/Remote:{1})", Settings.VerifyPackets, (e.Packet as HandshakePacket).VerifyPackets));
                     }
+
+                    if (
+                        !((HandshakePacket) e.Packet).CustomPackets.TrueForAll(
+                            x =>
+                            Globals.ReservedPacketIDs.Contains(x) ||
+                            Settings.PacketTable.FirstOrDefault(p => p.ID == x) != null))
+                    {
+                        SendPacket(new ErrorPacket("Packet table mismatch"), x => x == e.SourcePeer);
+                        e.SourcePeer.Disconnect("Packet table mismatch");
+                    }
+
                     break;
             }
         }

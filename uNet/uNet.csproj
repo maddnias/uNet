@@ -47,6 +47,7 @@
     <Compile Include="Structures\IAutoSerializePacket.cs" />
     <Compile Include="Structures\IEncryptedPacket.cs" />
     <Compile Include="Structures\OptionSet.cs" />
+    <Compile Include="Structures\Packets\ExamplePacket.cs" />
     <Compile Include="Structures\Schemes\TestScheme.cs" />
     <Compile Include="Tools\Extensions\BinaryStreamExtensions.cs" />
     <Compile Include="Tools\Extensions\PacketExtensions.cs" />
