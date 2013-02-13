@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using uNet.Structures;
 
 namespace uNet.Tools.Extensions
@@ -37,6 +38,11 @@ namespace uNet.Tools.Extensions
         {
             foreach (var x in iteratable)
                 act(x);
+        }
+
+        public static byte[] GetMd5Hash(this byte[] buffer)
+        {
+            return new MD5CryptoServiceProvider().ComputeHash(buffer);
         }
     }
 }

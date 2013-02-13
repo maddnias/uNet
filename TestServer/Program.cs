@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using uNet;
 using uNet.Server;
+using uNet.Structures;
 using uNet.Structures.Packets;
 using uNet.Structures.Schemes;
 
@@ -16,7 +17,7 @@ namespace TestServer
         static void Main(string[] args)
         {
 
-            var srv = new uNetServer(1337, new TestScheme());
+            var srv = new uNetServer(1337, new OptionSet(true, new TestScheme()));
             srv.Initialize();
 
             srv.OnPeerConnected += (o, e) => Console.WriteLine("Peer connected from: " + e.Peer.RemoteEndPoint);

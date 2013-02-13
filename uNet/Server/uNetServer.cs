@@ -47,17 +47,18 @@ namespace uNet.Server
             _debug = debug;
             ConnectedPeers = new List<Peer>();
 
+            Globals.Settings = new OptionSet(false, null);
             Globals.Server = this;
         }
 
-        public uNetServer(uint port, ICryptoScheme cryptoScheme, string address = "0.0.0.0", bool debug = false)
+        public uNetServer(uint port, OptionSet settings, string address = "0.0.0.0", bool debug = false)
         {
             _uNetSock = new TcpListener(IPAddress.Parse(address), (int)port);
             _endPoint = new IPEndPoint(IPAddress.Parse(address), (int)port);
             _debug = debug;
             ConnectedPeers = new List<Peer>();
 
-            Globals.CryptoScheme = cryptoScheme;
+            Globals.Settings = settings;
             Globals.Server = this;
         }
 
@@ -145,10 +146,15 @@ namespace uNet.Server
                         SendPacket(new ErrorPacket("Protocol version mismatch"), x => x == e.SourcePeer);
                         e.SourcePeer.Disconnect(string.Format("Protocol version mismatch. (Local:{0}/Remote:{1})", Globals.Version, (e.Packet as HandshakePacket).Version));
                     }
-                    else if (Globals.CryptoScheme != null && ((HandshakePacket) e.Packet).CryptoSchemeID != Globals.CryptoScheme.SchemeID)
+                    else if (Globals.Settings.CryptoScheme != null && ((HandshakePacket) e.Packet).CryptoSchemeID != Globals.Settings.CryptoScheme.SchemeID)
                     {
                         SendPacket(new ErrorPacket("CryptoScheme ID version mismatch"), x => x == e.SourcePeer);
-                        e.SourcePeer.Disconnect(string.Format("CryptoScheme ID version mismatch. (Local:{0}/Remote:{1})", Globals.CryptoScheme.SchemeID, (e.Packet as HandshakePacket).CryptoSchemeID));
+                        e.SourcePeer.Disconnect(string.Format("CryptoScheme ID version mismatch. (Local:{0}/Remote:{1})", Globals.Settings.CryptoScheme.SchemeID, (e.Packet as HandshakePacket).CryptoSchemeID));
+                    }
+                    else if (Globals.Settings.VerifyPackets != ((HandshakePacket) e.Packet).VerifyPackets)
+                    {
+                        SendPacket(new ErrorPacket("Verify packets option mismatch"), x => x == e.SourcePeer);
+                        e.SourcePeer.Disconnect(string.Format("Verify packets option mismatch. (Local:{0}/Remote:{1})", Globals.Settings.VerifyPackets, (e.Packet as HandshakePacket).VerifyPackets));
                     }
                     break;
             }

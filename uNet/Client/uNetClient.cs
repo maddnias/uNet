@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -36,18 +37,21 @@ namespace uNet.Client
             EndPoint = new IPEndPoint(IPAddress.Parse(host), (int)port);
             _uNetClient = new TcpClient();
             BufferSize = 1024;
+
+            Globals.Settings = new OptionSet(false, null);
             Processor = new PacketProcessor();
         }
 
-        public uNetClient(string host, uint port, ICryptoScheme cryptoScheme)
+        public uNetClient(string host, uint port, OptionSet settings)
         {
             EndPoint = new IPEndPoint(IPAddress.Parse(host), (int)port);
             _uNetClient = new TcpClient();
             BufferSize = 1024;
-            Processor = new PacketProcessor();
 
-            Globals.CryptoScheme = cryptoScheme;
+            Globals.Settings = settings;
+            Processor = new PacketProcessor();
         }
+
 
         public bool Connect()
         {
@@ -55,8 +59,6 @@ namespace uNet.Client
 
             if (flag)
             {
-                SendPacket(new HandshakePacket());
-
                 if (OnClientConnected != null)
                     OnClientConnected(null, new ClientEventArgs());
             }
@@ -83,6 +85,7 @@ namespace uNet.Client
                 _netStream = _uNetClient.GetStream();
                 ReadAsync();
 
+                for(var i = 0;i < 5;i++)
                 SendPacket(new HandshakePacket());
             }
 
@@ -90,45 +93,58 @@ namespace uNet.Client
         }
         private async void ReadAsync()
         {
+            var fBuff = new List<byte>();
+            var tmpBuff = new byte[BufferSize];
+            int read;
+            int packetSize;
+
             while (true)
             {
                 if (_netStream.CanRead)
                 {
-                    var fBuff = new List<byte>();
-                    var tmpBuff = new byte[BufferSize];
-                    var packetSize = -1;
-
                     try
                     {
-                        packetSize = await Processor.CalculatePrefix(_netStream);
+                        read = await _netStream.ReadAsync(tmpBuff, 0, tmpBuff.Length);
+                        fBuff.AddRange(tmpBuff.Slice(0, read));
+
+                        while (true)
+                        {
+                            if (fBuff.Count < sizeof(int)) break;
+
+                            packetSize = BitConverter.ToInt32(fBuff.ToArray(), 0);
+
+                            if (fBuff.Count >= packetSize + sizeof(int))
+                            {
+                                // Remove length prefix
+                                fBuff.RemoveRange(0, sizeof(int));
+
+                                var verified = true;
+                                var parsedPacket = Processor.ParsePacket(fBuff.Take(packetSize).ToArray(), out verified);
+                                fBuff.RemoveRange(0, packetSize);
+
+                                if (!verified)
+                                {
+                                    Disconnect();
+                                    break;
+                                }
+
+                                if (Globals.ReservedPacketIDs.Contains(parsedPacket.ID))
+                                    InternalOnPacketReceived(parsedPacket);
+
+                                if (fBuff.Count < sizeof(int))
+                                    break;
+                            }
+                            else
+                                break;
+                        }
                     }
                     catch
                     {
                         Disconnect();
                     }
-
-                    if (packetSize == -1)
-                        return;
-                    do
-                    {
-                        int read = 0;
-                        try
-                        {
-                            read = await _netStream.ReadAsync(tmpBuff, 0, tmpBuff.Length);
-                        }
-                        catch (Exception)
-                        {
-                            Disconnect();
-                        }
-
-                        fBuff.AddRange((read >= BufferSize ? tmpBuff : tmpBuff.Slice(0, read)));
-                    } while (_netStream.DataAvailable);
-
-                    var parsedPacket = Processor.ParsePacket(fBuff.ToArray());
-
-                    if (Globals.ReservedPacketIDs.Contains(parsedPacket.ID))
-                        InternalOnPacketReceived(parsedPacket);
                 }
+                else
+                    Disconnect();
             }
         }
         /// <summary>

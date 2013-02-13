@@ -10,9 +10,8 @@ namespace uNet
 {
     internal static class Globals
     {
-        //settings
-        public static ICryptoScheme CryptoScheme { get; set; }
-
+        public static OptionSet Settings;
+       
         public static string Version = "0.0.1";
         public static uNetServer Server;
         public static List<short> ReservedPacketIDs = new List<short> { 0, 1};

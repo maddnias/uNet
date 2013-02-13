@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -42,6 +43,11 @@ namespace uNet.Server
 
         internal async void ReadAsync()
         {
+            var fBuff = new List<byte>();
+            var tmpBuff = new byte[BufferSize];
+            int read;
+            int packetSize;
+
             while (true)
             {
                 if (!Client.Connected)
@@ -49,52 +55,55 @@ namespace uNet.Server
 
                 if (NetStream.CanRead)
                 {
-                    var fBuff = new List<byte>();
-                    var tmpBuff = new byte[BufferSize];
-                    int packetSize;
+                    try
+                    {
+                        read = await NetStream.ReadAsync(tmpBuff, 0, tmpBuff.Length);
+                        fBuff.AddRange(tmpBuff.Slice(0, read));
 
-                    // calculate packet size before attempting to receive
-                    try{
-                        packetSize = await Processor.CalculatePrefix(NetStream);
+                        while (true)
+                        {
+                            if (fBuff.Count < sizeof(int)) break;
 
-                        if (packetSize == -1){
-                            Disconnect();
-                            return;
+                            packetSize = BitConverter.ToInt32(fBuff.ToArray(), 0);
+
+                            if (fBuff.Count >= packetSize + sizeof(int))
+                            {
+                                // Remove length prefix
+                                fBuff.RemoveRange(0, sizeof(int));
+
+                                var verified = true;
+                                var parsedPacket = Processor.ParsePacket(fBuff.Take(packetSize).ToArray(), out verified);
+                                fBuff.RemoveRange(0, packetSize);
+
+                                if (!verified)
+                                {
+                                    Disconnect("Packet hash verification failed.");
+                                    break;
+                                }
+
+                                if (OnPacketReceived != null)
+                                {
+                                    var source = Globals.Server.ConnectedPeers.FirstOrDefault(x => x.RemoteEndPoint == Client.Client.RemoteEndPoint);
+
+                                    // don't invoke onpacketreceived on packets used for internal protocol
+                                    if (Globals.ReservedPacketIDs.Contains(parsedPacket.ID))
+                                        InternalOnPacketReceived(null, new PacketEventArgs(source, parsedPacket, packetSize));
+                                    else
+                                        OnPacketReceived(null, new PacketEventArgs(source, parsedPacket, packetSize));
+                                }
+
+                                if (fBuff.Count < sizeof(int))
+                                    break;
+                            }
+                            else
+                                break;
                         }
-                    } catch {
+                    }
+                    catch
+                    {
                         Disconnect();
-                        return;
                     }
 
-                    while (true)
-                    {
-                        var read = await NetStream.ReadAsync(tmpBuff, 0, tmpBuff.Length);
-
-                        if (read == 0)
-                            Disconnect();
-
-                        // slice redundant null bytes off of the buffer
-                        fBuff.AddRange((read >= BufferSize ? tmpBuff : tmpBuff.Slice(0, read)));
-
-                        // continue reading until buffer reaches complete packet size
-                        if (fBuff.Count >= packetSize)
-                            break;
-                    }
-
-                    if (OnPacketReceived != null)
-                    {
-                        var source = Globals.Server.ConnectedPeers.FirstOrDefault(x => x.RemoteEndPoint == Client.Client.RemoteEndPoint);
-                        var parsedPacket = Processor.ParsePacket(fBuff.ToArray());
-
-                        if (source == null)
-                            throw new uNetPeerException("Could not retrieve source peer");
-
-                        // don't invoke onpacketreceived on packets used for internal protocol
-                        if (Globals.ReservedPacketIDs.Contains(parsedPacket.ID))
-                            InternalOnPacketReceived(null, new PacketEventArgs(source, parsedPacket, fBuff.Count + sizeof(int)));
-                        else
-                            OnPacketReceived(null, new PacketEventArgs(source, parsedPacket, fBuff.Count + sizeof(int)));
-                    }
                 }
                 else
                     Disconnect();

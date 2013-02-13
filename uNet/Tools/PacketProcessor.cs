@@ -46,7 +46,7 @@ namespace uNet.Tools
             bw.Flush();
 
             // Copy ms -> redirect writer to new ms -> prepend packet size prefix -> append packet paylod
-            FinalizePacket(ref bw, (packet is IEncryptedPacket && Globals.CryptoScheme != null));
+            FinalizePacket(ref bw, (packet is IEncryptedPacket && Globals.Settings.CryptoScheme != null));
             ms.Dispose(); // Dispose of expired ms, writer's basestream is created in FinalizePacket
             ms = bw.BaseStream as MemoryStream;
 
@@ -68,29 +68,47 @@ namespace uNet.Tools
 
             // Prepend packet size prefix
 
-            data = Globals.CryptoScheme != null && encrypt ? Globals.CryptoScheme.EncryptData(data) : data;
+            var dataHash = data.GetMd5Hash();
+            data = Globals.Settings.CryptoScheme != null && encrypt ? Globals.Settings.CryptoScheme.EncryptData(data) : data;
 
-            writer.Write(data.Length+1);
+            writer.Write(data.Length+1 + (Globals.Settings.VerifyPackets ? 16 : 0));
             writer.Write(encrypt ? (byte)0x1 : (byte)0x0);
+
+            if (Globals.Settings.VerifyPackets)
+                writer.Write(dataHash);
+
             writer.Write(data);
         }
 
-        public IPacket ParsePacket(byte[] rawData)
+        public IPacket ParsePacket(byte[] rawData, out bool verified)
         {
             IPacket packet;
+            verified = true;
 
-            if (Globals.CryptoScheme != null && rawData[0] == 0x1)
+            if (Globals.Settings.CryptoScheme != null && rawData[0] == 0x1)
             {
                 // Slice raw data to make sure user can not access header
-                Globals.CryptoScheme.DecryptData(rawData.Slice(1, rawData.Length - 1)).CopyTo(rawData, 1);
+                var idx = Globals.Settings.VerifyPackets ? 17 : 1;
+                Globals.Settings.CryptoScheme.DecryptData(rawData.Slice(idx, rawData.Length - idx)).CopyTo(rawData, 17);
+            }
+
+            if (Globals.Settings.VerifyPackets)
+            {
+                var remoteHash = rawData.Slice(1, 16);
+                var localHash = rawData.Slice(17, rawData.Length - 17).GetMd5Hash();
+
+                if (!remoteHash.SequenceEqual(localHash))
+                {
+                    verified = false;
+                    return null;
+                }
+
+                rawData = rawData.Slice(17, rawData.Length - 17);
             }
 
             using(var ms = new MemoryStream(rawData))
             using (var br = new BinaryReader(ms))
             {
-                // Remove encrypt flag
-                br.ReadByte();
-
                 var id = br.ReadInt16();
                 // Find and create instance of packet from table depending on ID
                 var packetType = _packetTable.FirstOrDefault(x => x.ID == id).GetType();
