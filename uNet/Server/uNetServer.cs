@@ -138,7 +138,7 @@ namespace uNet.Server
         {
             switch (e.Packet.ID)
             {
-                case 0:
+                case 9998:
                     if (((HandshakePacket) e.Packet).Version != Globals.Version)
                     {
                         SendPacket(new ErrorPacket("Protocol version mismatch"), x => x == e.SourcePeer);

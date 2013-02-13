@@ -179,7 +179,7 @@ namespace uNet.Client
         {
             switch (packet.ID)
             {
-                case 1:
+                case 9999:
                     throw new uNetProtocolException(((ErrorPacket)packet).ErrorMessage);
             }
         }
