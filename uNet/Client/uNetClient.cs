@@ -84,8 +84,7 @@ namespace uNet.Client
             {
                 _netStream = _uNetClient.GetStream();
                 ReadAsync();
-
-                for(var i = 0;i < 5;i++)
+                
                 SendPacket(new HandshakePacket());
             }
 
