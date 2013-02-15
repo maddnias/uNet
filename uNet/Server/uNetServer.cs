@@ -140,8 +140,6 @@ namespace uNet.Server
         /// </summary>
         internal void InternalOnPacketReceived(object sender, PacketEventArgs e)
         {
-            Console.WriteLine("Received {0} bytes", e.RawPacketSize);
-
             switch (e.Packet.ID)
             {
                 case 9998:
