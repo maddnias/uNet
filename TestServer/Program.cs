@@ -8,7 +8,6 @@ using uNet;
 using uNet.Server;
 using uNet.Structures;
 using uNet.Structures.Packets;
-using uNet.Structures.Schemes;
 
 namespace TestServer
 {
@@ -21,7 +20,7 @@ namespace TestServer
                 new ExamplePacket()
             };
 
-            var srv = new uNetServer(1337, new OptionSet(true, new TestScheme(), customPackets));
+            var srv = new uNetServer(1337, new ServerSettings(new List<IPacket>(), false));
 
             srv.Initialize();
 

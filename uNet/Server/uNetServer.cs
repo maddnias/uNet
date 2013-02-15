@@ -32,13 +32,14 @@ namespace uNet.Server
 
         #region Public fields
         public List<Peer> ConnectedPeers { get; set; }
-        public static OptionSet Settings { get; private set; }
+        public static ServerSettings Settings { get; private set; }
         #endregion
 
         #region Private fields
         private readonly IPEndPoint _endPoint;
         private readonly TcpListener _uNetSock;
         private readonly bool _debug;
+        private readonly object _sendLock = new object();
         #endregion
 
         public uNetServer(uint port, string address = "0.0.0.0", bool debug = false)
@@ -48,10 +49,10 @@ namespace uNet.Server
             _debug = debug;
             ConnectedPeers = new List<Peer>();
 
-            Settings = new OptionSet(false, null, new List<IPacket>());
+            Settings = new ServerSettings(new List<IPacket>(), false);
         }
 
-        public uNetServer(uint port, OptionSet settings, string address = "0.0.0.0", bool debug = false)
+        public uNetServer(uint port, ServerSettings settings, string address = "0.0.0.0", bool debug = false)
         {
             _uNetSock = new TcpListener(IPAddress.Parse(address), (int)port);
             _endPoint = new IPEndPoint(IPAddress.Parse(address), (int)port);
@@ -77,7 +78,12 @@ namespace uNet.Server
         public void Broadcast(IPacket packet)
         {
             ConnectedPeers.ForEach(x => 
-                x.Processor.SendPacket(packet, x.NetStream));
+                {
+                    lock (_sendLock)
+                    {
+                        x.Processor.SendPacket(packet, x.NetStream).Wait();
+                    }
+                });
         }
 
         /// <summary>
@@ -92,7 +98,7 @@ namespace uNet.Server
             if (target == null)
                 throw new Exception("No peer match for current predicate");
 
-            target.Processor.SendPacket(packet, target.NetStream);
+            lock (_sendLock) target.Processor.SendPacket(packet, target.NetStream).Wait();
         }
 
         #region Internal socket operations
@@ -112,7 +118,7 @@ namespace uNet.Server
             while (true)
             {
                 var client = await _uNetSock.AcceptTcpClientAsync();
-                var peer = new Peer(client, this);
+                var peer = new Peer(client, this, Settings);
 
                 //Subscribe to peer events
                 peer.OnPeerDisconnected += PeerDisconnect;
@@ -127,8 +133,6 @@ namespace uNet.Server
 
                 if (OnPeerConnected != null)
                     OnPeerConnected(null, new PeerConnectedEventArgs(peer));
-
-                peer.ReadAsync();
             }
         }
         /// <summary>
@@ -136,6 +140,8 @@ namespace uNet.Server
         /// </summary>
         internal void InternalOnPacketReceived(object sender, PacketEventArgs e)
         {
+            Console.WriteLine("Received {0} bytes", e.RawPacketSize);
+
             switch (e.Packet.ID)
             {
                 case 9998:
@@ -144,17 +150,7 @@ namespace uNet.Server
                         SendPacket(new ErrorPacket("Protocol version mismatch"), x => x == e.SourcePeer);
                         e.SourcePeer.Disconnect(string.Format("Protocol version mismatch. (Local:{0}/Remote:{1})", Globals.Version, (e.Packet as HandshakePacket).Version));
                     }
-                    else if (Settings.CryptoScheme != null && ((HandshakePacket) e.Packet).CryptoSchemeID != Settings.CryptoScheme.SchemeID)
-                    {
-                        SendPacket(new ErrorPacket("CryptoScheme ID version mismatch"), x => x == e.SourcePeer);
-                        e.SourcePeer.Disconnect(string.Format("CryptoScheme ID version mismatch. (Local:{0}/Remote:{1})", Settings.CryptoScheme.SchemeID, (e.Packet as HandshakePacket).CryptoSchemeID));
-                    }
-                    else if (Settings.VerifyPackets != ((HandshakePacket) e.Packet).VerifyPackets)
-                    {
-                        SendPacket(new ErrorPacket("Verify packets option mismatch"), x => x == e.SourcePeer);
-                        e.SourcePeer.Disconnect(string.Format("Verify packets option mismatch. (Local:{0}/Remote:{1})", Settings.VerifyPackets, (e.Packet as HandshakePacket).VerifyPackets));
-                    }
-
+                
                     if (
                         !((HandshakePacket) e.Packet).CustomPackets.TrueForAll(
                             x =>

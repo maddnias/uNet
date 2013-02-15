@@ -9,7 +9,6 @@ using uNet;
 using uNet.Client;
 using uNet.Structures;
 using uNet.Structures.Packets;
-using uNet.Structures.Schemes;
 
 namespace tester
 {
@@ -23,7 +22,8 @@ namespace tester
             };
 
             Thread.Sleep(2000);
-            var cl = new uNetClient("127.0.0.1", 1337, new OptionSet(true, new TestScheme(), customPackets));
+            var cl = new uNetClient("192.168.0.103", 1337,
+                new ClientSettings(new List<IPacket>(), false));
 
             cl.OnPacketSent += (o, e) => Console.WriteLine("Sent {0} bytes...", e.RawPacketSize);
             cl.OnPacketReceived += (o, e) => Console.WriteLine("Received {0} bytes...", e.RawPacketSize);
@@ -31,6 +31,7 @@ namespace tester
             cl.OnDisconnected += (o, e) => Console.WriteLine("Lost connection");
 
             cl.Connect();
+
 
             Console.ReadLine();
         }

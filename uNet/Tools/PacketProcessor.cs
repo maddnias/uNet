@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Security;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using uNet.Structures;
@@ -36,10 +37,10 @@ namespace uNet.Tools
                 new ErrorPacket(),
             };
 
-            _packetTable.AddRange(Settings.PacketTable);
+            _packetTable.AddRange(Settings.PacketTable ?? new List<IPacket>());
         }
 
-        public async void SendPacket(IPacket packet, NetworkStream netStream)
+        public async Task SendPacket(IPacket packet, Stream netStream)
         {
             var ms = new MemoryStream();
             var bw = new BinaryWriter(ms);
@@ -55,10 +56,10 @@ namespace uNet.Tools
             bw.Flush();
 
             // Copy ms -> redirect writer to new ms -> prepend packet size prefix -> append packet paylod
-            FinalizePacket(ref bw, (packet is IEncryptedPacket && Settings.CryptoScheme != null));
+            FinalizePacket(ref bw);
             ms.Dispose(); // Dispose of expired ms, writer's basestream is created in FinalizePacket
             ms = bw.BaseStream as MemoryStream;
-
+            // this here failed? ye wait a moment
             await netStream.WriteAsync(ms.ToArray(), 0, (int)ms.Length);
 
             if (OnPacketSent != null)
@@ -69,7 +70,7 @@ namespace uNet.Tools
 
         }
 
-        private void FinalizePacket(ref BinaryWriter writer, bool encrypt)
+        private void FinalizePacket(ref BinaryWriter writer)
         {
             var data = ((MemoryStream) writer.BaseStream).ToArray();
             var ms = new MemoryStream();
@@ -77,15 +78,7 @@ namespace uNet.Tools
 
             // Prepend packet size prefix
 
-            var dataHash = data.GetMd5Hash();
-            data = Settings.CryptoScheme != null && encrypt ? Settings.CryptoScheme.EncryptData(data) : data;
-
-            writer.Write(data.Length+1 + (Settings.VerifyPackets ? 16 : 0));
-            writer.Write(encrypt ? (byte)0x1 : (byte)0x0);
-
-            if (Settings.VerifyPackets)
-                writer.Write(dataHash);
-
+            writer.Write(data.Length);
             writer.Write(data);
         }
 
@@ -93,27 +86,6 @@ namespace uNet.Tools
         {
             IPacket packet;
             verified = true;
-
-            if (Settings.CryptoScheme != null && rawData[0] == 0x1)
-            {
-                // Decrypt packet content (skipping header)
-                var idx = Settings.VerifyPackets ? 17 : 1;
-                Settings.CryptoScheme.DecryptData(rawData.Slice(idx, rawData.Length - idx)).CopyTo(rawData, 17);
-            }
-
-            if (Settings.VerifyPackets)
-            {
-                var remoteHash = rawData.Slice(1, 16);
-                var localHash = rawData.Slice(17, rawData.Length - 17).GetMd5Hash();
-
-                if (!remoteHash.SequenceEqual(localHash))
-                {
-                    verified = false;
-                    return null;
-                }
-
-                rawData = rawData.Slice(17, rawData.Length - 17);
-            }
 
             using(var ms = new MemoryStream(rawData))
             using (var br = new BinaryReader(ms))

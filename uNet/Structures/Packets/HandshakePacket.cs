@@ -11,8 +11,6 @@ namespace uNet.Structures.Packets
     {
         public short ID { get { return 9998; } }
         public string Version { get; set; }
-        public int CryptoSchemeID { get; set; }
-        public bool VerifyPackets { get; set; }
         public List<short> CustomPackets { get; set; }
 
         public HandshakePacket()
@@ -23,18 +21,14 @@ namespace uNet.Structures.Packets
         public HandshakePacket(OptionSet settings)
         {
             Version = Globals.Version;
-            CryptoSchemeID = settings.CryptoScheme == null ? 0 : settings.CryptoScheme.SchemeID;
-            VerifyPackets = settings.VerifyPackets;
             CustomPackets = new List<short>();
 
-            settings.PacketTable.ForEach(x => CustomPackets.Add(x.ID));
+            (settings.PacketTable ?? new List<IPacket>()).ForEach(x => CustomPackets.Add(x.ID));
         }
 
         public void SerializePacket(System.IO.BinaryWriter writer)
         {
             writer.Write(Version);
-            writer.Write(CryptoSchemeID);
-            writer.Write(VerifyPackets);
             writer.Write(CustomPackets.Count);
 
             CustomPackets.ForEach(writer.Write);
@@ -43,8 +37,6 @@ namespace uNet.Structures.Packets
         public void DeserializePacket(System.IO.BinaryReader reader)
         {
             Version = reader.ReadString();
-            CryptoSchemeID = reader.ReadInt32();
-            VerifyPackets = reader.ReadBoolean();
 
             var packetCount = reader.ReadInt32();
 

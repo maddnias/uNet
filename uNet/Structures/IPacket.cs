@@ -8,7 +8,7 @@ namespace uNet.Structures
     public interface IPacket
     {
         /// <summary>
-        /// Each packet is required to have a unique ID, reserved IDs range from 0-1
+        /// Each packet is required to have a unique ID, reserved IDs range from 9998-9999
         /// </summary>
         short ID { get; }
         /// <summary>

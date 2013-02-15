@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using uNet.Structures;
 using uNet.Structures.Packets;
@@ -36,22 +38,23 @@ namespace uNet.Client
         #region Private fields
         internal PacketProcessor Processor { get; set; }
         private TcpClient _uNetClient;
-        private NetworkStream _netStream;
+        private Stream _netStream;
+        private readonly object _sendLock = new object();
         #endregion
 
         #region Public fields
         public IPEndPoint EndPoint { get; set; }
         public int BufferSize { get; set; }
-        public static OptionSet Settings { get; set; }
+        public static ClientSettings Settings { get; set; }
         #endregion
 
         public uNetClient(string host, uint port)
         {
             EndPoint = new IPEndPoint(IPAddress.Parse(host), (int)port);
             _uNetClient = new TcpClient();
-            BufferSize = 1024;
+            Settings = new ClientSettings(new List<IPacket>(), false);
 
-            Settings = new OptionSet(false, null, new List<IPacket>());
+            BufferSize = Settings.ReceiveBufferSize;
             Processor = new PacketProcessor(Settings);
 
             Processor.OnPacketSent += (o, e) =>
@@ -61,13 +64,13 @@ namespace uNet.Client
             };
         }
 
-        public uNetClient(string host, uint port, OptionSet settings)
+        public uNetClient(string host, uint port, ClientSettings settings)
         {
             EndPoint = new IPEndPoint(IPAddress.Parse(host), (int)port);
             _uNetClient = new TcpClient();
-            BufferSize = 1024;
-
             Settings = settings;
+
+            BufferSize = Settings.ReceiveBufferSize;
             Processor = new PacketProcessor(Settings);
 
             Processor.OnPacketSent += (o, e) =>
@@ -85,6 +88,8 @@ namespace uNet.Client
             {
                 if (OnConnected != null)
                     OnConnected(null, new ClientEventArgs());
+
+                SendPacket(new HandshakePacket(Settings));
             }
 
             return flag;
@@ -98,7 +103,7 @@ namespace uNet.Client
         }
         public void SendPacket(IPacket packet)
         {
-            Processor.SendPacket(packet, _netStream);
+            lock (_sendLock) Processor.SendPacket(packet, _netStream).Wait();
         }
 
         #region Internal socket operations
@@ -108,13 +113,28 @@ namespace uNet.Client
 
             if (_uNetClient.Connected)
             {
-                _netStream = _uNetClient.GetStream();
+                if (Settings.UseSSL)
+                {
+                    _netStream = new SslStream(_uNetClient.GetStream(), false, ValidateServerCertificate, null, EncryptionPolicy.RequireEncryption);
+                    await (_netStream as SslStream).AuthenticateAsClientAsync(Settings.SSLServerCertIdentity.CertName);
+                }
+                else
+                    _netStream = _uNetClient.GetStream();
+
                 ReadAsync();
-                
-                SendPacket(new HandshakePacket(Settings));
             }
 
             return _uNetClient.Connected;
+        }
+        public bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+        {
+            // 		"8D13532A207D05A60A0329788C9F34CF7D04B01C"
+            var certificateX5092 = certificate as X509Certificate2;
+            if (certificateX5092 == null) return false;
+
+            if (certificateX5092.Thumbprint == Settings.SSLServerCertIdentity.Thumbprint && certificateX5092.SubjectName.Name == Settings.SSLServerCertIdentity.CertName) return true;
+
+            return false;
         }
         private async void ReadAsync()
         {

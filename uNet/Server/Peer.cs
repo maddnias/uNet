@@ -1,8 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
+using uNet.Structures;
 using uNet.Tools;
 using uNet.Tools.Extensions;
 
@@ -15,23 +19,31 @@ namespace uNet.Server
         internal event PacketEventHandler InternalOnPacketReceived;
         internal TcpClient Client { get; set; }
         internal PacketProcessor Processor { get; set; }
-        internal NetworkStream NetStream;
+        internal Stream NetStream;
         internal uNetServer Server { get; private set; }
 
         public EndPoint RemoteEndPoint { get; set; }
         public int BufferSize { get; set; }
 
 
-        public Peer(TcpClient client, uNetServer server)
+        public Peer(TcpClient client, uNetServer server, ServerSettings settings)
         {
             Client = client;
             RemoteEndPoint = Client.Client.RemoteEndPoint;
-            BufferSize = 1024;
-            NetStream = Client.GetStream();
+            BufferSize = settings.ReceiveBufferSize;
+
+            if (settings.UseSSL)
+            {
+                NetStream = new SslStream(Client.GetStream(), true);
+                (NetStream as SslStream).AuthenticateAsServer(new X509Certificate(File.ReadAllBytes(settings.SSLCertLocation)));
+            }
+            else
+                NetStream = Client.GetStream();
+
             Processor = new PacketProcessor(uNetServer.Settings);
             Server = server;
 
-            //ReadAsync();
+            ReadAsync();
         }
 
         public void Disconnect(string reason = "")
