@@ -43,20 +43,26 @@
     <Compile Include="Server\uNetServer.cs" />
     <Compile Include="Server\Peer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Structures\IAutoSerializePacket.cs" />
-    <Compile Include="Structures\IEncryptedPacket.cs" />
+    <Compile Include="Structures\Events\ClientEventArgs.cs" />
+    <Compile Include="Structures\Events\PacketEventArgs.cs" />
+    <Compile Include="Structures\Events\PeerConnectedEventArgs.cs" />
+    <Compile Include="Structures\Events\PeerDisconnectedEventArgs.cs" />
+    <Compile Include="Structures\Events\PeerEventArgs.cs" />
+    <Compile Include="Structures\Exceptions\uNetProtocolException.cs" />
+    <Compile Include="Structures\Packets\Base\IAutoSerializePacket.cs" />
+    <Compile Include="Structures\Packets\Base\IEncryptedPacket.cs" />
     <Compile Include="Structures\OptionSet.cs" />
     <Compile Include="Structures\Packets\ExamplePacket.cs" />
-    <Compile Include="Tools\Extensions\BinaryStreamExtensions.cs" />
-    <Compile Include="Tools\Extensions\PacketExtensions.cs" />
-    <Compile Include="uNetEvents.cs" />
+    <Compile Include="Utilities\Extensions\BinaryStreamExtensions.cs" />
+    <Compile Include="Utilities\Extensions\PacketExtensions.cs" />
+    <Compile Include="Structures\Events\EventHandlers.cs" />
     <Compile Include="Client\uNetClient.cs" />
-    <Compile Include="Structures\IPacket.cs" />
+    <Compile Include="Structures\Packets\Base\IPacket.cs" />
     <Compile Include="Structures\Packets\ErrorPacket.cs" />
     <Compile Include="Structures\Packets\HandshakePacket.cs" />
-    <Compile Include="Tools\Extensions\ArrayExtensions.cs" />
-    <Compile Include="Tools\PacketProcessor.cs" />
-    <Compile Include="uNetExceptions.cs" />
+    <Compile Include="Utilities\Extensions\ArrayExtensions.cs" />
+    <Compile Include="Utilities\PacketProcessor.cs" />
+    <Compile Include="Structures\Exceptions\uNetPeerException.cs" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

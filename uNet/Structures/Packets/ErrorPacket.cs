@@ -1,4 +1,6 @@
-﻿namespace uNet.Structures.Packets
+﻿using uNet.Structures.Packets.Base;
+
+namespace uNet.Structures.Packets
 {
     /// <summary>
     /// Sent whenever there's a error regarding a peer

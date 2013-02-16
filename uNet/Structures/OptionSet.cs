@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using uNet.Structures.Packets.Base;
 
 namespace uNet.Structures
 {
@@ -31,13 +28,13 @@ namespace uNet.Structures
         /// <summary>
         /// Server SSL certificate identity, required in order to authenticate connection
         /// </summary>
-        public ServerCertificateIdentity SSLServerCertIdentity;
+        public ServerCertificateIdentity SslServerCertIdentity;
 
-        public ClientSettings(List<IPacket> packetTable, bool useSSL, ServerCertificateIdentity? serverIdentity = null)
-            : base(packetTable, useSSL)
+        public ClientSettings(List<IPacket> packetTable, bool useSsl, ServerCertificateIdentity? serverIdentity = null)
+            : base(packetTable, useSsl)
         {
             if(serverIdentity != null)
-                SSLServerCertIdentity = (ServerCertificateIdentity)serverIdentity;
+                SslServerCertIdentity = (ServerCertificateIdentity)serverIdentity;
         }
     }
 
@@ -46,12 +43,12 @@ namespace uNet.Structures
         /// <summary>
         /// Local path for server to read SSL certificate from. You can automatically generate a SSL certificate using CertUtil
         /// </summary>
-        public string SSLCertLocation { get; set; }
+        public string SslCertLocation { get; set; }
 
-        public ServerSettings(List<IPacket> packetTable, bool useSSL, string certLocation = null)
-            : base(packetTable, useSSL)
+        public ServerSettings(List<IPacket> packetTable, bool useSsl, string certLocation = null)
+            : base(packetTable, useSsl)
         {
-            SSLCertLocation = certLocation;
+            SslCertLocation = certLocation;
         }
     }
 
@@ -60,7 +57,7 @@ namespace uNet.Structures
         /// <summary>
         /// Enable/Disable SSL for connection
         /// </summary>
-        public bool UseSSL { get; set; }
+        public bool UseSsl { get; set; }
         /// <summary>
         /// A list of IPacket containing all custom packets
         /// WARNING: List must be equal on both client and server side
@@ -72,10 +69,10 @@ namespace uNet.Structures
         /// </summary>
         public int ReceiveBufferSize { get; set; }
 
-        protected OptionSet(List<IPacket> packetTable, bool useSSL, int receiveBufferSize = 1024)
+        protected OptionSet(List<IPacket> packetTable, bool useSsl, int receiveBufferSize = 1024)
         {
             PacketTable = packetTable;
-            UseSSL = useSSL;
+            UseSsl = useSsl;
             ReceiveBufferSize = receiveBufferSize;
         }
     }

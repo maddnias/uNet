@@ -5,7 +5,9 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using uNet.Structures;
+using uNet.Structures.Events;
 using uNet.Structures.Packets;
+using uNet.Structures.Packets.Base;
 
 namespace uNet.Server
 {
@@ -36,7 +38,6 @@ namespace uNet.Server
         #endregion
 
         #region Private fields
-        private readonly IPEndPoint _endPoint;
         private readonly TcpListener _uNetSock;
         private readonly bool _debug;
         private readonly object _sendLock = new object();
@@ -45,7 +46,6 @@ namespace uNet.Server
         public uNetServer(uint port, string address = "0.0.0.0", bool debug = false)
         {
             _uNetSock = new TcpListener(IPAddress.Parse(address), (int)port);
-            _endPoint = new IPEndPoint(IPAddress.Parse(address), (int)port);
             _debug = debug;
             ConnectedPeers = new List<Peer>();
 
@@ -55,7 +55,6 @@ namespace uNet.Server
         public uNetServer(uint port, ServerSettings settings, string address = "0.0.0.0", bool debug = false)
         {
             _uNetSock = new TcpListener(IPAddress.Parse(address), (int)port);
-            _endPoint = new IPEndPoint(IPAddress.Parse(address), (int)port);
             _debug = debug;
             ConnectedPeers = new List<Peer>();
 
@@ -127,9 +126,6 @@ namespace uNet.Server
                 peer.Processor.OnPacketSent += (o, e) => { if (OnPacketSent != null) { OnPacketSent(null, new PacketEventArgs(null, e.Packet, e.RawPacketSize)); } }; 
 
                 ConnectedPeers.Add(peer);
-
-                if (_debug)
-                    Debug.Print("Peer connected from: " + peer.RemoteEndPoint);
 
                 if (OnPeerConnected != null)
                     OnPeerConnected(null, new PeerConnectedEventArgs(peer));

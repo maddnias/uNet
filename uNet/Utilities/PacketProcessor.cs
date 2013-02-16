@@ -2,11 +2,12 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Security;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using uNet.Structures;
+using uNet.Structures.Events;
 using uNet.Structures.Packets;
+using uNet.Structures.Packets.Base;
 using uNet.Tools.Extensions;
 
 namespace uNet.Tools
@@ -59,7 +60,7 @@ namespace uNet.Tools
             FinalizePacket(ref bw);
             ms.Dispose(); // Dispose of expired ms, writer's basestream is created in FinalizePacket
             ms = bw.BaseStream as MemoryStream;
-            // this here failed? ye wait a moment
+
             await netStream.WriteAsync(ms.ToArray(), 0, (int)ms.Length);
 
             if (OnPacketSent != null)

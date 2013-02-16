@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
-using uNet.Server;
-using uNet.Tools;
+using uNet.Structures.Packets.Base;
 
 namespace uNet.Structures.Packets
 {

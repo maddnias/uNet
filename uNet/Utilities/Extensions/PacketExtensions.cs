@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using uNet.Structures;
+using uNet.Structures.Packets.Base;
 
 namespace uNet.Tools.Extensions
 {

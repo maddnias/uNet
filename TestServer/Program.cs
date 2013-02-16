@@ -8,6 +8,7 @@ using uNet;
 using uNet.Server;
 using uNet.Structures;
 using uNet.Structures.Packets;
+using uNet.Structures.Packets.Base;
 
 namespace TestServer
 {

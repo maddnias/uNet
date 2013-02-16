@@ -9,6 +9,7 @@ using uNet;
 using uNet.Client;
 using uNet.Structures;
 using uNet.Structures.Packets;
+using uNet.Structures.Packets.Base;
 
 namespace tester
 {

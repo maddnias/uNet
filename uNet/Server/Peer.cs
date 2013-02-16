@@ -7,6 +7,7 @@ using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using uNet.Structures;
+using uNet.Structures.Events;
 using uNet.Tools;
 using uNet.Tools.Extensions;
 
@@ -32,10 +33,10 @@ namespace uNet.Server
             RemoteEndPoint = Client.Client.RemoteEndPoint;
             BufferSize = settings.ReceiveBufferSize;
 
-            if (settings.UseSSL)
+            if (settings.UseSsl)
             {
                 NetStream = new SslStream(Client.GetStream(), true);
-                (NetStream as SslStream).AuthenticateAsServer(new X509Certificate(File.ReadAllBytes(settings.SSLCertLocation)));
+                (NetStream as SslStream).AuthenticateAsServer(new X509Certificate(File.ReadAllBytes(settings.SslCertLocation)));
             }
             else
                 NetStream = Client.GetStream();

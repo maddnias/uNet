@@ -8,7 +8,10 @@ using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using uNet.Structures;
+using uNet.Structures.Events;
+using uNet.Structures.Exceptions;
 using uNet.Structures.Packets;
+using uNet.Structures.Packets.Base;
 using uNet.Tools;
 using uNet.Tools.Extensions;
 
@@ -37,7 +40,7 @@ namespace uNet.Client
 
         #region Private fields
         internal PacketProcessor Processor { get; set; }
-        private TcpClient _uNetClient;
+        private readonly TcpClient _uNetClient;
         private Stream _netStream;
         private readonly object _sendLock = new object();
         #endregion
@@ -113,10 +116,10 @@ namespace uNet.Client
 
             if (_uNetClient.Connected)
             {
-                if (Settings.UseSSL)
+                if (Settings.UseSsl)
                 {
                     _netStream = new SslStream(_uNetClient.GetStream(), false, ValidateServerCertificate, null, EncryptionPolicy.RequireEncryption);
-                    await (_netStream as SslStream).AuthenticateAsClientAsync(Settings.SSLServerCertIdentity.CertName);
+                    await (_netStream as SslStream).AuthenticateAsClientAsync(Settings.SslServerCertIdentity.CertName);
                 }
                 else
                     _netStream = _uNetClient.GetStream();
@@ -132,7 +135,7 @@ namespace uNet.Client
             var certificateX5092 = certificate as X509Certificate2;
             if (certificateX5092 == null) return false;
 
-            if (certificateX5092.Thumbprint == Settings.SSLServerCertIdentity.Thumbprint && certificateX5092.SubjectName.Name == Settings.SSLServerCertIdentity.CertName) return true;
+            if (certificateX5092.Thumbprint == Settings.SslServerCertIdentity.Thumbprint && certificateX5092.SubjectName.Name == Settings.SslServerCertIdentity.CertName) return true;
 
             return false;
         }

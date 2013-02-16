@@ -1,6 +1,6 @@
 ﻿using System.IO;
 
-namespace uNet.Structures
+namespace uNet.Structures.Packets.Base
 {
     /// <summary>
     /// High level interpretation of a data packet
