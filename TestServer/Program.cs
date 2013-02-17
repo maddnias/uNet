@@ -1,14 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using uNet;
 using uNet.Server;
-using uNet.Structures;
-using uNet.Structures.Packets;
-using uNet.Structures.Packets.Base;
+using uNet.Structures.Compression;
+using uNet.Structures.Settings;
 
 namespace TestServer
 {
@@ -16,12 +9,14 @@ namespace TestServer
     {
         static void Main(string[] args)
         {
-            var customPackets = new List<IPacket> 
-            {
-                new ExamplePacket()
-            };
-
-            var srv = new uNetServer(1337, new ServerSettings(new List<IPacket>(), false));
+            var settings = new ServerSettings
+                              {
+                                  PacketTable = null,
+                                  PacketCompressor = new LZ4Compressor(),
+                                  UseSsl = false
+                              };
+ 
+            var srv = new uNetServer(1337, settings);
 
             srv.Initialize();
 

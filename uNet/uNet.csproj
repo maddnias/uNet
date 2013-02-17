@@ -28,6 +28,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -39,10 +40,28 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Compression\QuickLZ.cs" />
     <Compile Include="Globals.cs" />
+    <Compile Include="Structures\Compression\Base\CompressionCalculator.cs" />
+    <Compile Include="Structures\Packets\Base\IForceCompressedPacket.cs" />
+    <Compile Include="Structures\Packets\Base\INonCompressedPacket.cs" />
+    <Compile Include="Structures\Settings\ClientSettings.cs" />
+    <Compile Include="Structures\Compression\LZ4Compressor.cs" />
+    <Compile Include="Compression\LZ4Sharp\ILZ4Compressor.cs" />
+    <Compile Include="Compression\LZ4Sharp\ILZ4Decompressor.cs" />
+    <Compile Include="Compression\LZ4Sharp\LZ4.cs" />
+    <Compile Include="Compression\LZ4Sharp\LZ4Compressor32.cs" />
+    <Compile Include="Compression\LZ4Sharp\LZ4Compressor64.cs" />
+    <Compile Include="Compression\LZ4Sharp\LZ4CompressorFactory.cs" />
+    <Compile Include="Compression\LZ4Sharp\LZ4Decompressor32.cs" />
+    <Compile Include="Compression\LZ4Sharp\LZ4Decompressor64.cs" />
+    <Compile Include="Compression\LZ4Sharp\LZ4DecompressorFactory.cs" />
+    <Compile Include="Compression\LZ4Sharp\LZ4Util.cs" />
     <Compile Include="Server\uNetServer.cs" />
     <Compile Include="Server\Peer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Structures\Compression\Base\ICompressor.cs" />
+    <Compile Include="Structures\Compression\QuickLZCompressor.cs" />
     <Compile Include="Structures\Events\ClientEventArgs.cs" />
     <Compile Include="Structures\Events\PacketEventArgs.cs" />
     <Compile Include="Structures\Events\PeerConnectedEventArgs.cs" />
@@ -50,9 +69,9 @@
     <Compile Include="Structures\Events\PeerEventArgs.cs" />
     <Compile Include="Structures\Exceptions\uNetProtocolException.cs" />
     <Compile Include="Structures\Packets\Base\IAutoSerializePacket.cs" />
-    <Compile Include="Structures\Packets\Base\IEncryptedPacket.cs" />
-    <Compile Include="Structures\OptionSet.cs" />
-    <Compile Include="Structures\Packets\ExamplePacket.cs" />
+    <Compile Include="Structures\Settings\Base\OptionSet.cs" />
+    <Compile Include="Structures\Settings\ServerCertificateIdentity.cs" />
+    <Compile Include="Structures\Settings\ServerSettings.cs" />
     <Compile Include="Utilities\Extensions\BinaryStreamExtensions.cs" />
     <Compile Include="Utilities\Extensions\PacketExtensions.cs" />
     <Compile Include="Structures\Events\EventHandlers.cs" />
@@ -64,7 +83,13 @@
     <Compile Include="Utilities\PacketProcessor.cs" />
     <Compile Include="Structures\Exceptions\uNetPeerException.cs" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Content Include="License.txt" />
+    <Content Include="Compression\LZ4Sharp\LZ4.h" />
+    <Content Include="Compression\LZ4Sharp\LZ4Compressor.c" />
+    <Content Include="Compression\LZ4Sharp\LZ4Decompressor.c" />
+    <Content Include="Compression\LZ4Sharp\LZ4Sharp.csproj" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

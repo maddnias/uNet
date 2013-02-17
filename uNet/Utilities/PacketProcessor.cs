@@ -4,13 +4,13 @@ using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
-using uNet.Structures;
 using uNet.Structures.Events;
 using uNet.Structures.Packets;
 using uNet.Structures.Packets.Base;
-using uNet.Tools.Extensions;
+using uNet.Structures.Settings.Base;
+using uNet.Utilities.Extensions;
 
-namespace uNet.Tools
+namespace uNet.Utilities
 {
     // Packet format:
     ///////////////////////////
@@ -45,6 +45,7 @@ namespace uNet.Tools
         {
             var ms = new MemoryStream();
             var bw = new BinaryWriter(ms);
+            var compressFlag = false;
 
             if (packet is IAutoSerializePacket)
                 (packet as IAutoSerializePacket).AutoSerialize(bw);
@@ -56,8 +57,14 @@ namespace uNet.Tools
 
             bw.Flush();
 
+            if(Settings.PacketCompressor != null || (Settings.PacketCompressor != null && packet is IForceCompressedPacket))
+                compressFlag = true;
+
+            if(packet is INonCompressedPacket)
+                compressFlag = false;
+
             // Copy ms -> redirect writer to new ms -> prepend packet size prefix -> append packet paylod
-            FinalizePacket(ref bw);
+            FinalizePacket(ref bw, compressFlag, packet);
             ms.Dispose(); // Dispose of expired ms, writer's basestream is created in FinalizePacket
             ms = bw.BaseStream as MemoryStream;
 
@@ -71,22 +78,39 @@ namespace uNet.Tools
 
         }
 
-        private void FinalizePacket(ref BinaryWriter writer)
+        private void FinalizePacket(ref BinaryWriter writer, bool compress, IPacket packet)
         {
             var data = ((MemoryStream) writer.BaseStream).ToArray();
             var ms = new MemoryStream();
             writer = new BinaryWriter(ms);
+            byte[] compressedData = null;
+
+            if (compress)
+                compressedData = Settings.PacketCompressor.CompressData(data);
+
+            if (compressedData != null)
+            {
+                if (compressedData.Length > data.Length && !(packet is IForceCompressedPacket))
+                    compressedData = null;
+                else
+                    data = compressedData;
+            }
 
             // Prepend packet size prefix
-
-            writer.Write(data.Length);
+            writer.Write(data.Length + 1);
+            writer.Write((byte)(compress && compressedData != null ? 0x1 : 0x0));
             writer.Write(data);
         }
 
-        public IPacket ParsePacket(byte[] rawData, out bool verified)
+        public IPacket ParsePacket(byte[] rawData)
         {
             IPacket packet;
-            verified = true;
+
+            // Compression flag
+            if (rawData[0] == 0x1)
+                rawData = Settings.PacketCompressor.DecompressData(rawData.Slice(1, rawData.Length - 1));
+            else
+                rawData = rawData.Slice(1, rawData.Length - 1);
 
             using(var ms = new MemoryStream(rawData))
             using (var br = new BinaryReader(ms))

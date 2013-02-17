@@ -12,8 +12,9 @@ using uNet.Structures.Events;
 using uNet.Structures.Exceptions;
 using uNet.Structures.Packets;
 using uNet.Structures.Packets.Base;
-using uNet.Tools;
-using uNet.Tools.Extensions;
+using uNet.Structures.Settings;
+using uNet.Utilities;
+using uNet.Utilities.Extensions;
 
 namespace uNet.Client
 {
@@ -55,7 +56,7 @@ namespace uNet.Client
         {
             EndPoint = new IPEndPoint(IPAddress.Parse(host), (int)port);
             _uNetClient = new TcpClient();
-            Settings = new ClientSettings(new List<IPacket>(), false);
+            Settings = new ClientSettings(new List<IPacket>(), null, false);
 
             BufferSize = Settings.ReceiveBufferSize;
             Processor = new PacketProcessor(Settings);
@@ -131,7 +132,6 @@ namespace uNet.Client
         }
         public bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
         {
-            // 		"8D13532A207D05A60A0329788C9F34CF7D04B01C"
             var certificateX5092 = certificate as X509Certificate2;
             if (certificateX5092 == null) return false;
 
@@ -157,7 +157,7 @@ namespace uNet.Client
                         {
                             if (fBuff.Count < sizeof(int)) break;
 
-                            int packetSize = BitConverter.ToInt32(fBuff.ToArray(), 0);
+                            var packetSize = BitConverter.ToInt32(fBuff.ToArray(), 0);
 
                             if (fBuff.Count < packetSize + sizeof (int))
                                 break;
@@ -165,15 +165,8 @@ namespace uNet.Client
                             // Remove length prefix
                             fBuff.RemoveRange(0, sizeof (int));
 
-                            bool verified;
-                            var parsedPacket = Processor.ParsePacket(fBuff.Take(packetSize).ToArray(), out verified);
+                            var parsedPacket = Processor.ParsePacket(fBuff.Take(packetSize).ToArray());
                             fBuff.RemoveRange(0, packetSize);
-
-                            if (!verified)
-                            {
-                                Disconnect();
-                                break;
-                            }
 
                             if (Globals.ReservedPacketIDs.Contains(parsedPacket.ID))
                                 InternalOnPacketReceived(parsedPacket);

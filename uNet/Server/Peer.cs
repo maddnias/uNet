@@ -6,10 +6,10 @@ using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
-using uNet.Structures;
 using uNet.Structures.Events;
-using uNet.Tools;
-using uNet.Tools.Extensions;
+using uNet.Structures.Settings;
+using uNet.Utilities;
+using uNet.Utilities.Extensions;
 
 namespace uNet.Server
 {
@@ -85,15 +85,8 @@ namespace uNet.Server
                             // Remove length prefix
                             fBuff.RemoveRange(0, sizeof (int));
 
-                            bool verified;
-                            var parsedPacket = Processor.ParsePacket(fBuff.Take(packetSize).ToArray(), out verified);
+                            var parsedPacket = Processor.ParsePacket(fBuff.Take(packetSize).ToArray());
                             fBuff.RemoveRange(0, packetSize);
-
-                            if (!verified)
-                            {
-                                Disconnect("Packet hash verification failed.");
-                                break;
-                            }
 
                             if (OnPacketReceived != null)
                             {

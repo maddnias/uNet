@@ -1,6 +1,6 @@
 ﻿using System.IO;
 
-namespace uNet.Tools.Extensions
+namespace uNet.Utilities.Extensions
 {
     public static class BinaryStreamExtensions
     {

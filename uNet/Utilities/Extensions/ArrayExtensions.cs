@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 
-namespace uNet.Tools.Extensions
+namespace uNet.Utilities.Extensions
 {
     public static class ArrayExtensions
     {

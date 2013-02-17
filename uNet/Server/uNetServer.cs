@@ -8,6 +8,7 @@ using uNet.Structures;
 using uNet.Structures.Events;
 using uNet.Structures.Packets;
 using uNet.Structures.Packets.Base;
+using uNet.Structures.Settings;
 
 namespace uNet.Server
 {
@@ -39,23 +40,20 @@ namespace uNet.Server
 
         #region Private fields
         private readonly TcpListener _uNetSock;
-        private readonly bool _debug;
         private readonly object _sendLock = new object();
         #endregion
 
         public uNetServer(uint port, string address = "0.0.0.0", bool debug = false)
         {
             _uNetSock = new TcpListener(IPAddress.Parse(address), (int)port);
-            _debug = debug;
             ConnectedPeers = new List<Peer>();
 
-            Settings = new ServerSettings(new List<IPacket>(), false);
+            Settings = new ServerSettings(new List<IPacket>(), null, false);
         }
 
-        public uNetServer(uint port, ServerSettings settings, string address = "0.0.0.0", bool debug = false)
+        public uNetServer(uint port, ServerSettings settings, string address = "0.0.0.0")
         {
             _uNetSock = new TcpListener(IPAddress.Parse(address), (int)port);
-            _debug = debug;
             ConnectedPeers = new List<Peer>();
 
             Settings = settings;
@@ -107,10 +105,6 @@ namespace uNet.Server
                 OnPeerDisconnected(null, e);
 
             ConnectedPeers.Remove(e.Peer);
-
-            if (_debug)
-                Debug.Print("Peer disconnected from: {0} with reason: {1}", e.Peer.RemoteEndPoint,
-                            ((PeerDisconnectedEventArgs) e).DisconnectReason);
         }
         private async void AcceptAsync()
         {
@@ -142,9 +136,17 @@ namespace uNet.Server
                     if (((HandshakePacket) e.Packet).Version != Globals.Version)
                     {
                         SendPacket(new ErrorPacket("Protocol version mismatch"), x => x == e.SourcePeer);
-                        e.SourcePeer.Disconnect(string.Format("Protocol version mismatch. (Local:{0}/Remote:{1})", Globals.Version, (e.Packet as HandshakePacket).Version));
+                        e.SourcePeer.Disconnect(string.Format("Protocol version mismatch (Local:{0}/Remote:{1})",
+                                                              Globals.Version, (e.Packet as HandshakePacket).Version));
                     }
-                
+                    
+                    if (((HandshakePacket) e.Packet).CompressorID != Settings.PacketCompressor.CompressionID)
+                    {
+                        e.SourcePeer.Disconnect(string.Format("ICompressor ID mismatch (Local:{0}/Remote:{1})",
+                                                              Settings.PacketCompressor.CompressionID,
+                                                              (e.Packet as HandshakePacket).CompressorID));
+                    }
+
                     if (
                         !((HandshakePacket) e.Packet).CustomPackets.TrueForAll(
                             x =>

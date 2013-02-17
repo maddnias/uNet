@@ -1,8 +1,7 @@
 ﻿using System.IO;
-using uNet.Structures;
 using uNet.Structures.Packets.Base;
 
-namespace uNet.Tools.Extensions
+namespace uNet.Utilities.Extensions
 {
     public static class PacketExtensions
     {
