@@ -12,16 +12,7 @@ using uNet.Utilities.Extensions;
 
 namespace uNet.Utilities
 {
-    // Packet format:
-    ///////////////////////////
-    ///  (int32)PacketSize  ///
-    ///  (byte)Encrypt flag ///
-    ///  (short)Packet ID   ///
-    ///////////////////////////
-    /// (byte[])Packet data ///
-    ///////////////////////////
-
-   
+  
     internal class PacketProcessor
     {
         internal event PacketEventHandler OnPacketSent;

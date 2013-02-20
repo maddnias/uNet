@@ -12,7 +12,7 @@ namespace TestServer
             var settings = new ServerSettings
                               {
                                   PacketTable = null,
-                                  PacketCompressor = new LZ4Compressor(),
+                                  PacketCompressor = null,
                                   UseSsl = false
                               };
  

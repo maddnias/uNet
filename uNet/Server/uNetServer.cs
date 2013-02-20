@@ -139,8 +139,15 @@ namespace uNet.Server
                         e.SourcePeer.Disconnect(string.Format("Protocol version mismatch (Local:{0}/Remote:{1})",
                                                               Globals.Version, (e.Packet as HandshakePacket).Version));
                     }
-                    
-                    if (((HandshakePacket) e.Packet).CompressorID != Settings.PacketCompressor.CompressionID)
+
+                    int localCompressionID;
+
+                    if (Settings.PacketCompressor == null)
+                        localCompressionID = -1;
+                    else
+                        localCompressionID = Settings.PacketCompressor.CompressionID;
+
+                    if (((HandshakePacket) e.Packet).CompressorID != localCompressionID)
                     {
                         e.SourcePeer.Disconnect(string.Format("ICompressor ID mismatch (Local:{0}/Remote:{1})",
                                                               Settings.PacketCompressor.CompressionID,

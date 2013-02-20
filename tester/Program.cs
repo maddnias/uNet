@@ -22,7 +22,7 @@ namespace tester
             var settings = new ClientSettings()
             {
                 PacketTable = null,
-                PacketCompressor = new LZ4Compressor(),
+                PacketCompressor = null,
                 UseSsl = false
             };
 
