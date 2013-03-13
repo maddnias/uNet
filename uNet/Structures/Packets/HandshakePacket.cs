@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.IO;
-using uNet.Structures.Compression.Base;
 using uNet.Structures.Packets.Base;
 using uNet.Structures.Settings.Base;
 

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -17,7 +16,7 @@ using uNet.Utilities.Extensions;
 
 namespace uNet.Client
 {
-    public class uNetClient
+    public class uNetClient : IDisposable
     {
         #region Events
         /// <summary>
@@ -202,5 +201,17 @@ namespace uNet.Client
             }
         }
         #endregion
+
+        public void Dispose()
+        {
+            Dispose(true);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+                if (_uNetClient != null)
+                    _uNetClient.Close();
+        }
     }
 }

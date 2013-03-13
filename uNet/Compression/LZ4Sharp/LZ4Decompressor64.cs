@@ -7,10 +7,6 @@ using System.Diagnostics;
 namespace LZ4Sharp
 {
 
-
-
-
-
     /// <summary>
     /// Class for decompressing an LZ4 compressed byte array.
     /// </summary>

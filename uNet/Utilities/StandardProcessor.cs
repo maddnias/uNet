@@ -2,10 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Sockets;
 using System.Threading.Tasks;
 using uNet.Structures.Events;
-using uNet.Structures.Exceptions;
 using uNet.Structures.Packets;
 using uNet.Structures.Packets.Base;
 using uNet.Structures.Settings.Base;
@@ -89,6 +87,7 @@ namespace uNet.Utilities
             writer.Write(data);
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
         public override IPacket ParsePacket(byte[] rawData)
         {
             IPacket packet;
@@ -106,9 +105,6 @@ namespace uNet.Utilities
                 // Find and create instance of packet from table depending on ID
                 var packetType = Settings.PacketTable.FirstOrDefault(x => x.ID == id).GetType();
                 packet = Activator.CreateInstance(packetType) as IPacket;
-
-                if (packet == null) // ID not present in table
-                    throw new Exception("Unknown packet received!");
 
                 // Populate packet fields
                 packet.DeserializePacket(ms);

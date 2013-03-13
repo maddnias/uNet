@@ -1,5 +1,4 @@
-﻿using LZ4Sharp;
-using uNet.Compression;
+﻿using uNet.Compression;
 using uNet.Structures.Compression.Base;
 
 namespace uNet.Structures.Compression

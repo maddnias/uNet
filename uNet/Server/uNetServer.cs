@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using uNet.Structures;
 using uNet.Structures.Events;
 using uNet.Structures.Packets;
 using uNet.Structures.Packets.Base;
@@ -44,7 +42,7 @@ namespace uNet.Server
         private readonly object _sendLock = new object();
         #endregion
 
-        public uNetServer(uint port, string address = "0.0.0.0", bool debug = false)
+        public uNetServer(uint port, string address = "0.0.0.0")
         {
             _uNetSock = new TcpListener(IPAddress.Parse(address), (int)port);
             ConnectedPeers = new List<Peer>();
@@ -125,7 +123,9 @@ namespace uNet.Server
                 if (OnPeerConnected != null)
                     OnPeerConnected(null, new PeerConnectedEventArgs(peer));
             }
+// ReSharper disable FunctionNeverReturns
         }
+// ReSharper restore FunctionNeverReturns
         /// <summary>
         /// Used for uProtocol specific packets which should not be handled by user
         /// </summary>

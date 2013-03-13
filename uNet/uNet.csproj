@@ -86,7 +86,7 @@
     <Compile Include="Utilities\StandardProcessor.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="License.txt" />
+    <Content Include="Compression\LZ4Sharp\License.txt" />
     <Content Include="Compression\LZ4Sharp\LZ4.h" />
     <Content Include="Compression\LZ4Sharp\LZ4Compressor.c" />
     <Content Include="Compression\LZ4Sharp\LZ4Decompressor.c" />

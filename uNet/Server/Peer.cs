@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -13,7 +12,7 @@ using uNet.Utilities.Extensions;
 
 namespace uNet.Server
 {
-    public class Peer
+    public class Peer : IDisposable
     {
         internal event PeerEventHandler OnPeerDisconnected;
         internal event PacketEventHandler OnPacketReceived;
@@ -25,7 +24,6 @@ namespace uNet.Server
 
         public EndPoint RemoteEndPoint { get; set; }
         public int BufferSize { get; set; }
-
 
         public Peer(TcpClient client, uNetServer server, ServerSettings settings, PacketProcessor processor)
         {
@@ -50,8 +48,7 @@ namespace uNet.Server
 
         public void Disconnect(string reason = "")
         {
-            NetStream.Dispose();
-            Client.Close();
+            Dispose();
 
             if (OnPeerDisconnected != null)
                 OnPeerDisconnected(null, new PeerDisconnectedEventArgs(this, reason));
@@ -96,6 +93,21 @@ namespace uNet.Server
                     break;
                 }
             }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if(disposing)
+                if (Client != null)
+                {
+                    NetStream.Dispose();
+                    Client.Close();
+                }
         }
     }
 }
