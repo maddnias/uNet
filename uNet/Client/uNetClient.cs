@@ -7,7 +7,6 @@ using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using uNet.Structures;
 using uNet.Structures.Events;
 using uNet.Structures.Exceptions;
 using uNet.Structures.Packets;
@@ -41,7 +40,7 @@ namespace uNet.Client
 
         #region Private fields
         internal PacketProcessor Processor { get; set; }
-        private readonly TcpClient _uNetClient;
+        private TcpClient _uNetClient;
         private Stream _netStream;
         private readonly object _sendLock = new object();
         #endregion
@@ -56,12 +55,13 @@ namespace uNet.Client
         {
             EndPoint = new IPEndPoint(IPAddress.Parse(host), (int)port);
             _uNetClient = new TcpClient();
+            _uNetClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             Settings = new ClientSettings(new List<IPacket>(), null, false);
 
             BufferSize = Settings.ReceiveBufferSize;
-            Processor = new PacketProcessor(Settings);
+            Processor = new uProtocolProcessor(Settings);
 
-            Processor.OnPacketSent += (o, e) =>
+            Processor._onPacketSent += (o, e) =>
             {
                 if (OnPacketSent != null)
                     OnPacketSent(o, e);
@@ -72,12 +72,13 @@ namespace uNet.Client
         {
             EndPoint = new IPEndPoint(IPAddress.Parse(host), (int)port);
             _uNetClient = new TcpClient();
+            _uNetClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Linger, false);
             Settings = settings;
 
             BufferSize = Settings.ReceiveBufferSize;
-            Processor = new PacketProcessor(Settings);
+            Processor = new uProtocolProcessor(Settings);
 
-            Processor.OnPacketSent += (o, e) =>
+            Processor._onPacketSent += (o, e) =>
             {
                 if (OnPacketSent != null)
                     OnPacketSent(o, e);
@@ -100,7 +101,7 @@ namespace uNet.Client
         }
         public void Disconnect()
         {
-            _uNetClient.Client.Disconnect(true);
+            ResetSocket();
 
             if (OnDisconnected != null)
                 OnDisconnected(null, new ClientEventArgs());
@@ -111,6 +112,13 @@ namespace uNet.Client
         }
 
         #region Internal socket operations
+        private void ResetSocket()
+        {
+            _uNetClient.Client.Shutdown(SocketShutdown.Both);
+            _uNetClient.Client.Disconnect(false);
+            _uNetClient = new TcpClient();
+            _uNetClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+        }
         private async Task<bool> ConnectAsync()
         {
             await _uNetClient.ConnectAsync(EndPoint.Address, EndPoint.Port);
@@ -119,7 +127,8 @@ namespace uNet.Client
             {
                 if (Settings.UseSsl)
                 {
-                    _netStream = new SslStream(_uNetClient.GetStream(), false, ValidateServerCertificate, null, EncryptionPolicy.RequireEncryption);
+                    _netStream = new SslStream(_uNetClient.GetStream(), false, ValidateServerCertificate, null,
+                                               EncryptionPolicy.RequireEncryption);
                     await (_netStream as SslStream).AuthenticateAsClientAsync(Settings.SslServerCertIdentity.CertName);
                 }
                 else
@@ -130,15 +139,7 @@ namespace uNet.Client
 
             return _uNetClient.Connected;
         }
-        public bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
-        {
-            var certificateX5092 = certificate as X509Certificate2;
-            if (certificateX5092 == null) return false;
 
-            if (certificateX5092.Thumbprint == Settings.SslServerCertIdentity.Thumbprint && certificateX5092.SubjectName.Name == Settings.SslServerCertIdentity.CertName) return true;
-
-            return false;
-        }
         private async void ReadAsync()
         {
             var fBuff = new List<byte>();
@@ -146,48 +147,49 @@ namespace uNet.Client
 
             while (true)
             {
-                if (_netStream.CanRead)
+                try
                 {
-                    try
-                    {
-                        int read = await _netStream.ReadAsync(tmpBuff, 0, tmpBuff.Length);
-                        fBuff.AddRange(tmpBuff.Slice(0, read));
+                    var read = await _netStream.ReadAsync(tmpBuff, 0, tmpBuff.Length);
 
-                        while (true)
-                        {
-                            if (fBuff.Count < sizeof(int)) break;
-
-                            var packetSize = BitConverter.ToInt32(fBuff.ToArray(), 0);
-
-                            if (fBuff.Count < packetSize + sizeof (int))
-                                break;
-
-                            // Remove length prefix
-                            fBuff.RemoveRange(0, sizeof (int));
-
-                            var parsedPacket = Processor.ParsePacket(fBuff.Take(packetSize).ToArray());
-                            fBuff.RemoveRange(0, packetSize);
-
-                            if (Globals.ReservedPacketIDs.Contains(parsedPacket.ID))
-                                InternalOnPacketReceived(parsedPacket);
-                            else if (OnPacketReceived != null)
-                                OnPacketReceived(null,
-                                                 new PacketEventArgs(null, parsedPacket, packetSize + sizeof (int)));
-
-                            if (fBuff.Count < sizeof (int))
-                                break;
-                        }
-                    }
-                    catch
+                    if (read == 0)
                     {
                         Disconnect();
                         break;
                     }
+
+                    fBuff.AddRange(tmpBuff.Slice(0, read));
+
+                    Processor.ProcessData(fBuff).ForEach(packet =>
+                                                                 {
+                                                                     if (
+                                                                         Globals.ReservedPacketIDs.Contains(
+                                                                             packet.ID))
+                                                                         InternalOnPacketReceived(packet);
+                                                                     else
+                                                                         OnPacketReceived(null,
+                                                                                          new PacketEventArgs(null,
+                                                                                                              packet));
+                                                                 });
                 }
-                else
+                catch
+                {
                     Disconnect();
+                    break;
+                }
             }
         }
+
+        public bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain,
+                                              SslPolicyErrors sslPolicyErrors)
+        {
+            var certificateX5092 = certificate as X509Certificate2;
+            if (certificateX5092 == null) return false;
+
+            return certificateX5092.Thumbprint == Settings.SslServerCertIdentity.Thumbprint &&
+                   certificateX5092.SubjectName.Name == Settings.SslServerCertIdentity.CertName
+                   && certificateX5092.NotAfter >= DateTime.Now;
+        }
+
         /// <summary>
         /// Used for uProtocol specific packets which should not be handled by user
         /// </summary>

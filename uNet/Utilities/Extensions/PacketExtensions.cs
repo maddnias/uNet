@@ -13,7 +13,11 @@ namespace uNet.Utilities.Extensions
         public static void AutoSerialize(this IAutoSerializePacket packet, BinaryWriter bw)
         {
             //Note: no safety check if type is not serializable with BinaryWriter by default!
-            packet.GetType().GetProperties().Iterate(x => bw.Write((dynamic)x.GetValue(packet)));
+            packet.GetType().GetProperties().Iterate(x =>
+                                                         {
+                                                             if (x.Name != "PacketSize")
+                                                                 bw.Write((dynamic) x.GetValue(packet));
+                                                         });
         }
     }
 }

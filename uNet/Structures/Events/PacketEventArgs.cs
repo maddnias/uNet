@@ -17,16 +17,11 @@ namespace uNet.Structures.Events
         /// Associated packet
         /// </summary>
         public IPacket Packet { get; set; }
-        /// <summary>
-        /// Raw size of data received/sent, including packet prefix and additional formatting
-        /// </summary>
-        public int RawPacketSize { get; set; }
 
-        public PacketEventArgs(Peer peer, IPacket packet, int rawPacketSize)
+        public PacketEventArgs(Peer peer, IPacket packet)
         {
             SourcePeer = peer;
             Packet = packet;
-            RawPacketSize = rawPacketSize;
         }
     }
 }

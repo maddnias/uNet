@@ -12,14 +12,18 @@ namespace uNet.Structures.Packets.Base
         /// </summary>
         short ID { get; }
         /// <summary>
-        /// Serialize all data to be sent into the BinaryWriter provided in the arguments
+        /// Returns the total size of the packet
         /// </summary>
-        /// <param name="writer"></param>
-        void SerializePacket(BinaryWriter writer);
+        int PacketSize { get; }
         /// <summary>
-        /// Populate all packet properties by reading from the BinaryReader
+        /// Serialize all data to be sent into the input buffer
         /// </summary>
-        /// <param name="reader"></param>
-        void DeserializePacket(BinaryReader reader);
+        /// <param name="outputBuffer">Buffer to be filled with packet data</param>
+        void SerializePacket(Stream outputBuffer);
+        /// <summary>
+        /// Populate all packet properties by reading from the inputBuffer
+        /// </summary>
+        /// <param name="inputBuffer">Buffer containing packet data</param>
+        void DeserializePacket(Stream inputBuffer);
     }
 }

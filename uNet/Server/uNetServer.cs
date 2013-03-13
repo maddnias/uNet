@@ -9,6 +9,7 @@ using uNet.Structures.Events;
 using uNet.Structures.Packets;
 using uNet.Structures.Packets.Base;
 using uNet.Structures.Settings;
+using uNet.Utilities;
 
 namespace uNet.Server
 {
@@ -111,13 +112,13 @@ namespace uNet.Server
             while (true)
             {
                 var client = await _uNetSock.AcceptTcpClientAsync();
-                var peer = new Peer(client, this, Settings);
+                var peer = new Peer(client, this, Settings, new uProtocolProcessor(Settings));
 
                 //Subscribe to peer events
                 peer.OnPeerDisconnected += PeerDisconnect;
                 peer.OnPacketReceived += (o, e) => { if(OnPacketReceived != null) { OnPacketReceived(o, e); } };
                 peer.InternalOnPacketReceived += InternalOnPacketReceived;
-                peer.Processor.OnPacketSent += (o, e) => { if (OnPacketSent != null) { OnPacketSent(null, new PacketEventArgs(null, e.Packet, e.RawPacketSize)); } }; 
+                peer.Processor._onPacketSent += (o, e) => { if (OnPacketSent != null) { OnPacketSent(null, new PacketEventArgs(null, e.Packet)); } }; 
 
                 ConnectedPeers.Add(peer);
 
@@ -149,6 +150,7 @@ namespace uNet.Server
 
                     if (((HandshakePacket) e.Packet).CompressorID != localCompressionID)
                     {
+                        SendPacket(new ErrorPacket("ICompressor ID mismatch"), x => x == e.SourcePeer);
                         e.SourcePeer.Disconnect(string.Format("ICompressor ID mismatch (Local:{0}/Remote:{1})",
                                                               Settings.PacketCompressor.CompressionID,
                                                               (e.Packet as HandshakePacket).CompressorID));

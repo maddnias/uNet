@@ -27,21 +27,22 @@ namespace uNet.Server
         public int BufferSize { get; set; }
 
 
-        public Peer(TcpClient client, uNetServer server, ServerSettings settings)
+        public Peer(TcpClient client, uNetServer server, ServerSettings settings, PacketProcessor processor)
         {
             Client = client;
             RemoteEndPoint = Client.Client.RemoteEndPoint;
             BufferSize = settings.ReceiveBufferSize;
+            Processor = processor;
 
             if (settings.UseSsl)
             {
                 NetStream = new SslStream(Client.GetStream(), true);
-                (NetStream as SslStream).AuthenticateAsServer(new X509Certificate(File.ReadAllBytes(settings.SslCertLocation)));
+                (NetStream as SslStream).AuthenticateAsServer(
+                    new X509Certificate(File.ReadAllBytes(settings.SslCertLocation)));
             }
             else
                 NetStream = Client.GetStream();
 
-            Processor = new PacketProcessor(uNetServer.Settings);
             Server = server;
 
             ReadAsync();
@@ -52,7 +53,7 @@ namespace uNet.Server
             NetStream.Dispose();
             Client.Close();
 
-            if(OnPeerDisconnected != null)
+            if (OnPeerDisconnected != null)
                 OnPeerDisconnected(null, new PeerDisconnectedEventArgs(this, reason));
         }
 
@@ -63,60 +64,37 @@ namespace uNet.Server
 
             while (true)
             {
-                if (!Client.Connected)
-                    return;
-
-                if (NetStream.CanRead)
+                try
                 {
-                    try
-                    {
-                        var read = await NetStream.ReadAsync(tmpBuff, 0, tmpBuff.Length);
-                        fBuff.AddRange(tmpBuff.Slice(0, read));
+                    var read = await NetStream.ReadAsync(tmpBuff, 0, tmpBuff.Length);
 
-                        while (true)
-                        {
-                            if (fBuff.Count < sizeof(int)) break;
-
-                            var packetSize = BitConverter.ToInt32(fBuff.ToArray(), 0);
-
-                            if (fBuff.Count < packetSize + sizeof (int))
-                                break;
-
-                            // Remove length prefix
-                            fBuff.RemoveRange(0, sizeof (int));
-
-                            var parsedPacket = Processor.ParsePacket(fBuff.Take(packetSize).ToArray());
-                            fBuff.RemoveRange(0, packetSize);
-
-                            if (OnPacketReceived != null)
-                            {
-                                var source =
-                                    Server.ConnectedPeers.FirstOrDefault(
-                                        x => x.RemoteEndPoint == Client.Client.RemoteEndPoint);
-
-                                // don't invoke onpacketreceived on packets used for internal protocol
-                                if (Globals.ReservedPacketIDs.Contains(parsedPacket.ID))
-                                    InternalOnPacketReceived(null,
-                                                             new PacketEventArgs(source, parsedPacket,
-                                                                                 packetSize + sizeof (int)));
-                                else
-                                    OnPacketReceived(null,
-                                                     new PacketEventArgs(source, parsedPacket,
-                                                                         packetSize + sizeof (int)));
-                            }
-
-                            if (fBuff.Count < sizeof (int))
-                                break;
-                        }
-                    }
-                    catch
+                    if (read == 0)
                     {
                         Disconnect();
+                        break;
                     }
 
+                    fBuff.AddRange(tmpBuff.Slice(0, read));
+
+                    Processor.ProcessData(fBuff).ForEach(packet =>
+                                                             {
+                                                                 if (
+                                                                     Globals.ReservedPacketIDs.Contains(
+                                                                         packet.ID))
+                                                                     InternalOnPacketReceived(null,
+                                                                                              new PacketEventArgs(null,
+                                                                                                                  packet));
+                                                                 else
+                                                                     OnPacketReceived(null,
+                                                                                      new PacketEventArgs(null,
+                                                                                                          packet));
+                                                             });
                 }
-                else
+                catch
+                {
                     Disconnect();
+                    break;
+                }
             }
         }
     }

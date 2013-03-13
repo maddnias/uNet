@@ -22,17 +22,25 @@ namespace tester
             var settings = new ClientSettings()
             {
                 PacketTable = null,
-                PacketCompressor = null,
+                PacketCompressor = new LZ4Compressor(),
                 UseSsl = false
             };
 
             Thread.Sleep(2000);
             var cl = new uNetClient("127.0.0.1", 1337, settings);
 
-            cl.OnPacketSent += (o, e) => Console.WriteLine("Sent {0} bytes...", e.RawPacketSize);
-            cl.OnPacketReceived += (o, e) => Console.WriteLine("Received {0} bytes...", e.RawPacketSize);
+            cl.OnPacketSent += (o, e) => Console.WriteLine("Sent {0} bytes...", e.Packet.PacketSize);
+            cl.OnPacketReceived += (o, e) => Console.WriteLine("Received {0} bytes...", e.Packet.PacketSize);
             cl.OnConnected += (o, e) => Console.WriteLine("Successfully connected to host");
             cl.OnDisconnected += (o, e) => Console.WriteLine("Lost connection");
+
+            cl.Connect();
+
+            Console.ReadLine();
+
+            cl.Disconnect();
+
+            Console.ReadLine();
 
             cl.Connect();
 

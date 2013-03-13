@@ -1,14 +1,21 @@
-﻿using uNet.Structures.Packets.Base;
+﻿using System.IO;
+using uNet.Structures.Packets.Base;
 
 namespace uNet.Structures.Packets
 {
     /// <summary>
     /// Sent whenever there's a error regarding a peer
     /// </summary>
-    public class ErrorPacket : IAutoSerializePacket
+    public class ErrorPacket : IAutoSerializePacket, INonCompressedPacket
     {
         public short ID { get { return 9999; } }
         public string ErrorMessage { get; set; }
+
+        public int PacketSize
+        {
+            get { return sizeof (short) + ErrorMessage.Length; }
+
+        }
 
         public ErrorPacket()
         {
@@ -20,11 +27,12 @@ namespace uNet.Structures.Packets
             ErrorMessage = errorMessage;
         }
 
-        public void SerializePacket(System.IO.BinaryWriter writer) { }
+        public void SerializePacket(Stream outputBuffer) { }
 
-        public void DeserializePacket(System.IO.BinaryReader reader)
+        public void DeserializePacket(Stream inputBuffer)
         {
-            ErrorMessage = reader.ReadString();
+            using(var reader = new BinaryReader(inputBuffer))
+                ErrorMessage = reader.ReadString();
         }
     }
 }
