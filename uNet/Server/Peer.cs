@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using uNet.Structures.Events;
 using uNet.Structures.Settings;
+using uNet.Structures.Settings.Base;
 using uNet.Utilities;
 using uNet.Utilities.Extensions;
 
@@ -25,24 +26,27 @@ namespace uNet.Server
         public EndPoint RemoteEndPoint { get; set; }
         public int BufferSize { get; set; }
 
-        public Peer(TcpClient client, uNetServer server, ServerSettings settings, PacketProcessor processor)
+        public Peer(TcpClient client, uNetServer server, OptionSet settings, PacketProcessor processor)
         {
             Client = client;
             RemoteEndPoint = Client.Client.RemoteEndPoint;
             BufferSize = settings.ReceiveBufferSize;
             Processor = processor;
 
-            if (settings.UseSsl)
+            if (settings is ServerSettings)
             {
-                NetStream = new SslStream(Client.GetStream(), true);
-                (NetStream as SslStream).AuthenticateAsServer(
-                    new X509Certificate(File.ReadAllBytes(settings.SslCertLocation)));
+                if ((settings as ServerSettings).UseSsl)
+                {
+                    NetStream = new SslStream(Client.GetStream(), true);
+                    (NetStream as SslStream).AuthenticateAsServer(
+                        new X509Certificate(File.ReadAllBytes((settings as ServerSettings).SslCertLocation)));
+                }
+                else
+                    NetStream = Client.GetStream();
             }
             else
-                NetStream = Client.GetStream();
-
+                NetStream = client.GetStream();
             Server = server;
-
             ReadAsync();
         }
 
@@ -79,17 +83,18 @@ namespace uNet.Server
                                                                      Globals.ReservedPacketIDs.Contains(
                                                                          packet.ID))
                                                                      InternalOnPacketReceived(null,
-                                                                                              new PacketEventArgs(null,
+                                                                                              new PacketEventArgs(this,
                                                                                                                   packet));
                                                                  else
                                                                      OnPacketReceived(null,
-                                                                                      new PacketEventArgs(null,
+                                                                                      new PacketEventArgs(this,
                                                                                                           packet));
                                                              });
                 }
                 catch
                 {
-                    Disconnect();
+                    if(Client != null)
+                        Disconnect();
                     break;
                 }
             }
@@ -107,6 +112,7 @@ namespace uNet.Server
                 {
                     NetStream.Dispose();
                     Client.Close();
+                    Client = null;
                 }
         }
     }

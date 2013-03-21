@@ -7,6 +7,7 @@ using uNet.Structures.Events;
 using uNet.Structures.Packets;
 using uNet.Structures.Packets.Base;
 using uNet.Structures.Settings;
+using uNet.Structures.Settings.Base;
 using uNet.Utilities;
 
 namespace uNet.Server
@@ -34,12 +35,13 @@ namespace uNet.Server
 
         #region Public fields
         public List<Peer> ConnectedPeers { get; set; }
-        public static ServerSettings Settings { get; private set; }
+        public static OptionSet Settings { get; private set; }
         #endregion
 
         #region Private fields
         private readonly TcpListener _uNetSock;
         private readonly object _sendLock = new object();
+        internal readonly PacketProcessor Processor;
         #endregion
 
         public uNetServer(uint port, string address = "0.0.0.0")
@@ -47,15 +49,37 @@ namespace uNet.Server
             _uNetSock = new TcpListener(IPAddress.Parse(address), (int)port);
             ConnectedPeers = new List<Peer>();
 
-            Settings = new ServerSettings(new List<IPacket>(), null, false);
+            Settings = new ServerSettings(new List<IPacket>
+                                              {
+                                                  new HandshakePacket(),
+                                                  new ErrorPacket()
+                                              }, null, false);
+
+            Processor = Settings.Processor;
+            Processor.Settings = Settings;
         }
 
-        public uNetServer(uint port, ServerSettings settings, string address = "0.0.0.0")
+        public uNetServer(uint port, OptionSet settings, string address = "0.0.0.0")
         {
             _uNetSock = new TcpListener(IPAddress.Parse(address), (int)port);
             ConnectedPeers = new List<Peer>();
-
             Settings = settings;
+
+            if (Settings.PacketTable == null)
+                Settings.PacketTable = new List<IPacket>
+                                           {
+                                               new HandshakePacket(),
+                                               new ErrorPacket()
+                                           };
+            else
+                Settings.PacketTable.AddRange(new List<IPacket>
+                                                  {
+                                                      new HandshakePacket(),
+                                                      new ErrorPacket()
+                                                  });
+
+            Processor = Settings.Processor;
+            Processor.Settings = Settings;
         }
 
         /// <summary>
@@ -100,17 +124,17 @@ namespace uNet.Server
         #region Internal socket operations
         private void PeerDisconnect(object sender, PeerEventArgs e)
         {
+            ConnectedPeers.Remove(e.Peer);
+
             if (OnPeerDisconnected != null)
                 OnPeerDisconnected(null, e);
-
-            ConnectedPeers.Remove(e.Peer);
         }
         private async void AcceptAsync()
         {
             while (true)
             {
                 var client = await _uNetSock.AcceptTcpClientAsync();
-                var peer = new Peer(client, this, Settings, new uProtocolProcessor(Settings));
+                var peer = new Peer(client, this, Settings, Processor);
 
                 //Subscribe to peer events
                 peer.OnPeerDisconnected += PeerDisconnect;

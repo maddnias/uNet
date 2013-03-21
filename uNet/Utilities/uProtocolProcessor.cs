@@ -4,28 +4,13 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using uNet.Structures.Events;
-using uNet.Structures.Packets;
 using uNet.Structures.Packets.Base;
-using uNet.Structures.Settings.Base;
 using uNet.Utilities.Extensions;
 
 namespace uNet.Utilities
 {
-    internal class uProtocolProcessor : PacketProcessor
+    public class uProtocolProcessor : PacketProcessor
     {
-        public uProtocolProcessor(OptionSet settings)
-            : base(settings)
-        {
-            if (settings.PacketTable == null)
-                settings.PacketTable = new List<IPacket>();
-
-            settings.PacketTable.AddRange(new IPacket[]
-                                              {
-                                                  new HandshakePacket(),
-                                                  new ErrorPacket()
-                                              });
-        }
-
         public override async Task SendPacket(IPacket packet, Stream netStream)
         {
             var ms = new MemoryStream();

@@ -11,6 +11,7 @@ using uNet.Structures.Exceptions;
 using uNet.Structures.Packets;
 using uNet.Structures.Packets.Base;
 using uNet.Structures.Settings;
+using uNet.Structures.Settings.Base;
 using uNet.Utilities;
 using uNet.Utilities.Extensions;
 
@@ -47,18 +48,22 @@ namespace uNet.Client
         #region Public fields
         public IPEndPoint EndPoint { get; set; }
         public int BufferSize { get; set; }
-        public static ClientSettings Settings { get; set; }
+        public static OptionSet Settings { get; set; }
         #endregion
 
         public uNetClient(string host, uint port)
         {
             EndPoint = new IPEndPoint(IPAddress.Parse(host), (int)port);
             _uNetClient = new TcpClient();
-            _uNetClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            Settings = new ClientSettings(new List<IPacket>(), null, false);
+            Settings = new ClientSettings(new List<IPacket>
+                                              {
+                                                  new HandshakePacket(),
+                                                  new ErrorPacket()
+                                              }, null, false);
 
             BufferSize = Settings.ReceiveBufferSize;
-            Processor = new uProtocolProcessor(Settings);
+            Processor = Settings.Processor;
+            Processor.Settings = Settings;
 
             Processor._onPacketSent += (o, e) =>
             {
@@ -67,15 +72,29 @@ namespace uNet.Client
             };
         }
 
-        public uNetClient(string host, uint port, ClientSettings settings)
+        public uNetClient(string host, uint port, OptionSet settings)
         {
             EndPoint = new IPEndPoint(IPAddress.Parse(host), (int)port);
             _uNetClient = new TcpClient();
             _uNetClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Linger, false);
             Settings = settings;
 
+            if (Settings.PacketTable == null)
+                Settings.PacketTable = new List<IPacket>
+                                           {
+                                               new HandshakePacket(),
+                                               new ErrorPacket()
+                                           };
+            else if(settings is ClientSettings)
+                Settings.PacketTable.AddRange(new List<IPacket>
+                                                  {
+                                                      new HandshakePacket(),
+                                                      new ErrorPacket()
+                                                  });
+
             BufferSize = Settings.ReceiveBufferSize;
-            Processor = new uProtocolProcessor(Settings);
+            Processor = Settings.Processor;
+            Processor.Settings = Settings;
 
             Processor._onPacketSent += (o, e) =>
             {
@@ -93,7 +112,8 @@ namespace uNet.Client
                 if (OnConnected != null)
                     OnConnected(null, new ClientEventArgs());
 
-                SendPacket(new HandshakePacket(Settings));
+                if (Settings is ClientSettings)
+                    SendPacket(new HandshakePacket(Settings));
             }
 
             return flag;
@@ -113,10 +133,8 @@ namespace uNet.Client
         #region Internal socket operations
         private void ResetSocket()
         {
-            _uNetClient.Client.Shutdown(SocketShutdown.Both);
-            _uNetClient.Client.Disconnect(false);
+            _uNetClient.Close();
             _uNetClient = new TcpClient();
-            _uNetClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
         }
         private async Task<bool> ConnectAsync()
         {
@@ -124,11 +142,18 @@ namespace uNet.Client
 
             if (_uNetClient.Connected)
             {
-                if (Settings.UseSsl)
+                if (Settings is ClientSettings)
                 {
-                    _netStream = new SslStream(_uNetClient.GetStream(), false, ValidateServerCertificate, null,
-                                               EncryptionPolicy.RequireEncryption);
-                    await (_netStream as SslStream).AuthenticateAsClientAsync(Settings.SslServerCertIdentity.CertName);
+                    if ((Settings as ClientSettings).UseSsl)
+                    {
+                        _netStream = new SslStream(_uNetClient.GetStream(), false, ValidateServerCertificate, null,
+                                                   EncryptionPolicy.RequireEncryption);
+                        await
+                            (_netStream as SslStream).AuthenticateAsClientAsync(
+                                (Settings as ClientSettings).SslServerCertIdentity.CertName);
+                    }
+                    else
+                        _netStream = _uNetClient.GetStream();
                 }
                 else
                     _netStream = _uNetClient.GetStream();
@@ -159,16 +184,25 @@ namespace uNet.Client
                     fBuff.AddRange(tmpBuff.Slice(0, read));
 
                     Processor.ProcessData(fBuff).ForEach(packet =>
-                                                                 {
-                                                                     if (
-                                                                         Globals.ReservedPacketIDs.Contains(
-                                                                             packet.ID))
-                                                                         InternalOnPacketReceived(packet);
-                                                                     else
-                                                                         OnPacketReceived(null,
-                                                                                          new PacketEventArgs(null,
-                                                                                                              packet));
-                                                                 });
+                                                             {
+                                                                 if (
+                                                                     Globals.ReservedPacketIDs.Contains(
+                                                                         packet.ID))
+                                                                     InternalOnPacketReceived(packet);
+                                                                 else
+                                                                     OnPacketReceived(null,
+                                                                                      new PacketEventArgs(null,
+                                                                                                          packet));
+                                                             });
+                }
+                catch (ObjectDisposedException e)
+                {
+                    // Ugly solution but works for now to prevent multiple calls to Disconnect when there
+                    // should only be one
+                    if (e.ObjectName == "System.Net.Sockets.NetworkStream")
+                        break;
+
+                    Disconnect();
                 }
                 catch
                 {
@@ -184,8 +218,8 @@ namespace uNet.Client
             var certificateX5092 = certificate as X509Certificate2;
             if (certificateX5092 == null) return false;
 
-            return certificateX5092.Thumbprint == Settings.SslServerCertIdentity.Thumbprint &&
-                   certificateX5092.SubjectName.Name == Settings.SslServerCertIdentity.CertName
+            return certificateX5092.Thumbprint == (Settings as ClientSettings).SslServerCertIdentity.Thumbprint &&
+                   certificateX5092.SubjectName.Name == (Settings as ClientSettings).SslServerCertIdentity.CertName
                    && certificateX5092.NotAfter >= DateTime.Now;
         }
 
@@ -211,7 +245,11 @@ namespace uNet.Client
         {
             if (disposing)
                 if (_uNetClient != null)
+                {
+                    _netStream.Dispose();
                     _uNetClient.Close();
+                    _uNetClient = null;
+                }
         }
     }
 }

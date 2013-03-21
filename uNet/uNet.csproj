@@ -83,7 +83,7 @@
     <Compile Include="Utilities\Extensions\ArrayExtensions.cs" />
     <Compile Include="Utilities\PacketProcessor.cs" />
     <Compile Include="Structures\Exceptions\uNetPeerException.cs" />
-    <Compile Include="Utilities\StandardProcessor.cs" />
+    <Compile Include="Utilities\uProtocolProcessor.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Compression\LZ4Sharp\License.txt" />

@@ -10,7 +10,7 @@ namespace uNet.Utilities
 {
     public abstract class PacketProcessor
     {
-        public readonly OptionSet Settings;
+        public OptionSet Settings;
         internal event EventHandler<PacketEventArgs> _onPacketSent;
 
         /// <summary>
@@ -21,11 +21,6 @@ namespace uNet.Utilities
         {
             if (_onPacketSent != null)
                 _onPacketSent(this, e);
-        }
-
-        protected PacketProcessor(OptionSet settings)
-        {
-            Settings = settings;
         }
 
         /// <summary>

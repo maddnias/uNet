@@ -19,12 +19,7 @@ namespace tester
     {
         static void Main(string[] args)
         {
-            var settings = new ClientSettings()
-            {
-                PacketTable = null,
-                PacketCompressor = new LZ4Compressor(),
-                UseSsl = false
-            };
+            var settings = new ClientSettings(null, new LZ4Compressor(), false);
 
             Thread.Sleep(2000);
             var cl = new uNetClient("127.0.0.1", 1337, settings);
